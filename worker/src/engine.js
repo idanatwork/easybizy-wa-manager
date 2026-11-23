@@ -99,7 +99,7 @@ async function runSteps(env, client, bot, session, steps, startIdx, ctx) {
   return { done: true };
 }
 
-function botSteps(bot) { try { return JSON.parse(bot.steps || '[]'); } catch { return []; } }
+function botSteps(bot) { if (Array.isArray(bot.steps)) return bot.steps; try { return JSON.parse(bot.steps || '[]'); } catch { return []; } }
 
 /* Pick the live bot that should handle an inbound message.
    Priority: keyword match > first-message > any-message. */
