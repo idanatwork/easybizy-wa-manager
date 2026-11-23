@@ -6,7 +6,7 @@ compatibility_date = "2026-11-23"
 [vars]
 ALLOWED_ORIGIN = "https://idanatwork.github.io"
 # OAuth 2.0 web client ID from Google Cloud Console (not a secret, but keep it here).
-GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_CLIENT_ID"
+GOOGLE_CLIENT_ID = "560597118963-pf9ng7eiibfqjsseipi7nqlabpvn83a5.apps.googleusercontent.com"
 # Comma-separated Google emails allowed to sign in. Server-side allowlist.
 ALLOWED_EMAILS = "idanatwork@gmail.com"
 

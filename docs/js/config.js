@@ -7,5 +7,5 @@
    WORKER_URL is set; sign-in is Google-only. */
 const CONFIG = {
   WORKER_URL: "",
-  GOOGLE_CLIENT_ID: "",
+  GOOGLE_CLIENT_ID: "560597118963-pf9ng7eiibfqjsseipi7nqlabpvn83a5.apps.googleusercontent.com",
 };
