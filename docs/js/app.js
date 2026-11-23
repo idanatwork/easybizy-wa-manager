@@ -28,9 +28,6 @@
         <aside class="sidebar">
           <div class="brand"><span class="logo">W</span> WA Manager<button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר" style="margin-inline-start:auto">◐</button></div>
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
-          <a class="nav-item ${active === 'bots' ? 'active' : ''}" href="#/bots"><span class="ico">✦</span> בוטים</a>
-          <a class="nav-item ${active === 'automations' ? 'active' : ''}" href="#/automations"><span class="ico">⚡</span> אוטומציות</a>
-          <a class="nav-item ${active === 'activity' ? 'active' : ''}" href="#/activity"><span class="ico">≡</span> פעילות</a>
           <div class="spacer"></div>
           <div class="who">
             ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>`}
@@ -110,7 +107,7 @@
         <div class="search-input"><input class="input" id="q" placeholder="חיפוש לפי שם או מספר"></div>
         <button class="btn" id="add">＋ הוספת לקוח</button>
       </div>
-      <p class="page-sub">כל עסק שאתם מנהלים, עם מצב החיבור וסטטוס השליחה בוואטסאפ.</p>
+      <p class="page-sub">כל עסק שאתם מנהלים, עם מצב החיבור וסטטוס השליחה בוואטסאפ. <a href="#/activity" style="color:var(--green-dark)">פעילות כללית בין כל הלקוחות ←</a></p>
       <div class="tbl-wrap"><table class="tbl" id="ct"><thead><tr>
         <th data-k="name">עסק</th><th data-k="whatsapp_number">מספר וואטסאפ</th><th data-k="quality_rating">איכות</th>
         <th data-k="active_bots">בוטים פעילים</th><th data-k="last_event_at">אירוע אחרון</th>
@@ -830,42 +827,6 @@
   }
 
   /* ---------------- bots overview page ---------------- */
-  async function viewBotsPage() {
-    clearInterval(state.convoTimer);
-    const { clients } = await Api.listClients();
-    state.clients = clients;
-    shell('bots', `
-      <div class="page-head"><h1>בוטים</h1><div class="grow"></div>
-      <select class="input" style="width:auto" id="bc">${clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
-      <div id="bb"></div>`);
-    const sel = document.getElementById('bc');
-    const load = () => {
-      const c = clients.find(x => x.id === +sel.value);
-      state.currentClient = c;
-      renderBots(document.getElementById('bb'), c);
-    };
-    sel.onchange = load;
-    if (clients.length) load();
-  }
-
-  async function viewAutomationsPage() {
-    clearInterval(state.convoTimer);
-    const { clients } = await Api.listClients();
-    state.clients = clients;
-    shell('automations', `
-      <div class="page-head"><h1>אוטומציות</h1><div class="grow"></div>
-      <select class="input" style="width:auto" id="ac">${clients.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
-      <div id="ab"></div>`);
-    const sel = document.getElementById('ac');
-    const load = () => {
-      const c = clients.find(x => x.id === +sel.value);
-      state.currentClient = c;
-      renderAutomations(document.getElementById('ab'), c);
-    };
-    sel.onchange = load;
-    if (clients.length) load();
-  }
-
   /* ---------------- router ---------------- */
   function route() {
     const h = location.hash || '#/clients';
@@ -873,8 +834,6 @@
     const [, page, a, b] = h.split('/');
     if (h === '#/login') return viewLogin();
     if (page === 'clients') return viewClients(a === 'new');
-    if (page === 'bots') return viewBotsPage();
-    if (page === 'automations') return viewAutomationsPage();
     if (page === 'activity') return viewActivityPage();
     if (page === 'client' && a) {
       const parts = h.split('/');
