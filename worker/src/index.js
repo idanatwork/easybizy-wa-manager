@@ -2,7 +2,8 @@
    Routes:
      POST /hook/:token            — EasyBizy webhook (per-client unguessable token)
      POST /api/login              — console password check
-     /api/* (Bearer ADMIN_PASSWORD) — clients, bots, conversations, activity
+     POST /api/auth/google       — Google ID-token sign-in (allowlisted emails only)
+     /api/* (Bearer session token) — clients, bots, automations, conversations, activity
    Secrets live only here (D1 + worker secrets); the public static site holds none. */
 import * as eb from './easybizy.js';
 import { handleEvent, runAutomations } from './engine.js';
@@ -28,9 +29,43 @@ const clientOut = (c) => c && ({
   events_seen: JSON.parse(c.events_seen || '[]'), notes: c.notes, created_at: c.created_at,
 });
 
+/* --- Google sign-in: verify the ID token signature against Google's keys,
+       then allow only emails from ALLOWED_EMAILS (server-side allowlist). --- */
+const b64url = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+let jwksCache = { at: 0, keys: [] };
+
+async function verifyGoogleToken(credential, env) {
+  const [h, p, s] = String(credential || '').split('.');
+  if (!h || !p || !s) return null;
+  const header = JSON.parse(new TextDecoder().decode(b64url(h)));
+  const payload = JSON.parse(new TextDecoder().decode(b64url(p)));
+  if (!['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss)) return null;
+  if (!env.GOOGLE_CLIENT_ID || payload.aud !== env.GOOGLE_CLIENT_ID) return null;
+  if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
+  if (Date.now() - jwksCache.at > 3600_000) {
+    jwksCache = { at: Date.now(), keys: (await (await fetch('https://www.googleapis.com/oauth2/v3/certs')).json()).keys || [] };
+  }
+  const jwk = jwksCache.keys.find((k) => k.kid === header.kid);
+  if (!jwk) return null;
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+  const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64url(s), new TextEncoder().encode(`${h}.${p}`));
+  if (!ok || payload.email_verified !== true) return null;
+  const allowed = (env.ALLOWED_EMAILS || '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (!allowed.includes(String(payload.email || '').toLowerCase())) return null;
+  return payload;
+}
+
+async function issueSession(env, email) {
+  const token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, '');
+  await env.DB.prepare(`INSERT INTO auth_sessions (token, email, expires_at) VALUES (?,?,strftime('%Y-%m-%dT%H:%M:%fZ','now','+30 days'))`).bind(token, email).run();
+  return token;
+}
+
 async function requireAuth(req, env) {
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  return env.ADMIN_PASSWORD && token === env.ADMIN_PASSWORD;
+  if (!token) return false;
+  const row = await env.DB.prepare(`SELECT token FROM auth_sessions WHERE token=? AND expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')`).bind(token).first();
+  return !!row;
 }
 
 async function getClient(env, id) {
@@ -80,9 +115,12 @@ export default {
 
       /* ---------- admin API ---------- */
       if (path === '/api/health') return withCors(json({ ok: true }));
-      if (path === '/api/login' && req.method === 'POST') {
-        const { password } = await req.json().catch(() => ({}));
-        return withCors(json(password === env.ADMIN_PASSWORD ? { ok: true } : { error: 'unauthorized' }, password === env.ADMIN_PASSWORD ? 200 : 401));
+      if (path === '/api/auth/google' && req.method === 'POST') {
+        const { credential } = await req.json().catch(() => ({}));
+        const payload = await verifyGoogleToken(credential, env).catch(() => null);
+        if (!payload) return withCors(json({ error: 'unauthorized' }, 401));
+        const token = await issueSession(env, payload.email);
+        return withCors(json({ ok: true, token, email: payload.email }));
       }
       if (!(await requireAuth(req, env))) return withCors(json({ error: 'unauthorized' }, 401));
 

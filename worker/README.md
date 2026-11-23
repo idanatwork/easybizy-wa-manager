@@ -1,7 +1,8 @@
 # WA Manager — Cloudflare Worker
 
 ה-backend של הקונסולה: מקבל webhooks מ-EasyBizy, מריץ את מנוע הבוטים, שומר הכל ב-D1,
-ומגיש API מאובטח (סיסמת צוות) לאתר הסטטי. שום סוד לא נמצא בריפו או באתר.
+ומגיש API מאובטח לאתר הסטטי. הכניסה לקונסולה היא עם Google בלבד: ה-Worker מאמת מול גוגל
+את האסימון ומאשר רק מיילים מהרשימה ALLOWED_EMAILS (ב-wrangler.toml). שום סוד לא נמצא בריפו או באתר.
 
 ## פריסה ראשונה
 
@@ -14,7 +15,8 @@ wrangler d1 create wa-manager
 # מעתיקים את database_id לתוך wrangler.toml תחת [[d1_databases]]
 
 wrangler d1 execute wa-manager --file=schema.sql
-wrangler secret put ADMIN_PASSWORD   # סיסמת הצוות לקונסולה
+# אין סיסמאות: הכניסה עם Google בלבד. ממלאים ב-wrangler.toml את GOOGLE_CLIENT_ID
+# (מ-Google Cloud Console) ואת ALLOWED_EMAILS (המיילים המורשים).
 
 wrangler deploy
 # התוצאה: https://wa-manager.<subdomain>.workers.dev
@@ -25,7 +27,10 @@ wrangler deploy
 ב-`docs/js/config.js` ממלאים:
 
 ```js
-const CONFIG = { WORKER_URL: "https://wa-manager.<subdomain>.workers.dev" };
+const CONFIG = {
+  WORKER_URL: "https://wa-manager.<subdomain>.workers.dev",
+  GOOGLE_CLIENT_ID: "<אותו Client ID מ-Google Cloud Console>",
+};
 ```
 
 כשהשדה ריק האתר רץ במצב הדגמה עם נתוני דוגמה.

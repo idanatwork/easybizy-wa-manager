@@ -44,8 +44,14 @@ const Api = (() => {
       sessionStorage.setItem('wa_token', password);
       return data;
     },
+    async loginGoogle(credential) {
+      const data = await request('/api/auth/google', { method: 'POST', body: { credential } });
+      sessionStorage.setItem('wa_token', data.token);
+      sessionStorage.setItem('wa_email', data.email || '');
+      return data;
+    },
     isLoggedIn() { return DEMO_MODE || !!sessionStorage.getItem('wa_token'); },
-    logout() { sessionStorage.removeItem('wa_token'); location.hash = '#/login'; },
+    logout() { sessionStorage.removeItem('wa_token'); sessionStorage.removeItem('wa_email'); location.hash = '#/login'; },
 
     async listClients() {
       if (DEMO_MODE) { await delay(); return { clients: d.clients.map(c => ({ ...c, active_bots: d.bots.filter(b => b.client_id === c.id && b.is_live).length })) }; }

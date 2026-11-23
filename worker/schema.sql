@@ -1,4 +1,10 @@
 -- WA Manager — D1 schema. Apply with: wrangler d1 execute wa-manager --file=schema.sql
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token TEXT PRIMARY KEY,
+  email TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  expires_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,

@@ -5,11 +5,12 @@ compatibility_date = "2026-11-23"
 # Static console origin allowed to call this API (the GitHub Pages site).
 [vars]
 ALLOWED_ORIGIN = "https://idanatwork.github.io"
+# OAuth 2.0 web client ID from Google Cloud Console (not a secret, but keep it here).
+GOOGLE_CLIENT_ID = "REPLACE_WITH_GOOGLE_CLIENT_ID"
+# Comma-separated Google emails allowed to sign in. Server-side allowlist.
+ALLOWED_EMAILS = "idanatwork@gmail.com"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "wa-manager"
 database_id = "REPLACE_WITH_D1_ID"   # from: wrangler d1 create wa-manager
-
-# Secrets (never in the repo):
-#   wrangler secret put ADMIN_PASSWORD   — shared team password for the console

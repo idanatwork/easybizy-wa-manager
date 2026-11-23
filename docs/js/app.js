@@ -32,7 +32,7 @@
           <a class="nav-item ${active === 'activity' ? 'active' : ''}" href="#/activity"><span class="ico">≡</span> פעילות</a>
           <div class="spacer"></div>
           <div class="who">
-            ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> ' : ''}Tech Mate · עידן
+            ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>`}
             <div style="margin-top:6px"><a href="#" id="logout">התנתקות</a></div>
           </div>
         </aside>
@@ -45,23 +45,55 @@
   /* ---------------- login ---------------- */
   function viewLogin() {
     clearInterval(state.convoTimer);
+    if (!Api.demoMode) return viewGoogleLogin();
     root.innerHTML = `
       <div class="login-wrap"><div class="login-card">
         <div class="logo">W</div>
         <h1>WA Manager</h1>
-        <p>ניהול וואטסאפ לכל לקוחות EasyBizy במקום אחד${Api.demoMode ? ' · <b>מצב הדגמה</b> — נתוני דוגמה, סיסמה חופשית' : ''}</p>
-        <form id="lf">
-          <label class="field"><span>סיסמת צוות</span>
-            <input class="input" type="password" id="pw" autocomplete="current-password" placeholder="••••••••" ${Api.demoMode ? 'value="demo"' : ''}>
-          </label>
-          <button class="btn" style="width:100%;justify-content:center" type="submit">כניסה</button>
-        </form>
+        <p>ניהול וואטסאפ לכל לקוחות EasyBizy במקום אחד · <b>מצב הדגמה</b> — נתוני דוגמה, כניסה חופשית</p>
+        <button class="btn" style="width:100%;justify-content:center" id="demo-in">כניסה להדגמה</button>
       </div></div>`;
-    document.getElementById('lf').onsubmit = async (e) => {
-      e.preventDefault();
-      try { await Api.login(document.getElementById('pw').value); location.hash = '#/clients'; }
-      catch (err) { toast('סיסמה שגויה'); }
+    document.getElementById('demo-in').onclick = async () => {
+      await Api.login('demo'); location.hash = '#/clients';
     };
+  }
+
+  /* Real mode: sign in with Google only. The Worker verifies the ID token
+     server-side and allows only allowlisted emails. */
+  function viewGoogleLogin() {
+    root.innerHTML = `
+      <div class="login-wrap"><div class="login-card">
+        <div class="logo">W</div>
+        <h1>WA Manager</h1>
+        <p>ניהול וואטסאפ לכל לקוחות EasyBizy במקום אחד</p>
+        <div id="g-btn" style="display:flex;justify-content:center;margin-top:18px;min-height:44px"></div>
+        <p class="hint" style="text-align:center;margin-top:14px">הכניסה מוגבלת לחשבון Google מורשה בלבד</p>
+      </div></div>`;
+    if (!CONFIG.GOOGLE_CLIENT_ID) {
+      document.getElementById('g-btn').innerHTML = '<span class="hint">חסר GOOGLE_CLIENT_ID בקובץ config.js</span>';
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.async = true; s.defer = true;
+    s.onload = () => {
+      google.accounts.id.initialize({
+        client_id: CONFIG.GOOGLE_CLIENT_ID,
+        callback: async (resp) => {
+          try {
+            await Api.loginGoogle(resp.credential);
+            location.hash = '#/clients';
+          } catch {
+            toast('הכניסה נדחתה — החשבון אינו מורשה');
+          }
+        },
+      });
+      google.accounts.id.renderButton(document.getElementById('g-btn'), { theme: 'outline', size: 'large', width: 260, locale: 'he' });
+    };
+    s.onerror = () => {
+      document.getElementById('g-btn').innerHTML = '<span class="hint">לא ניתן לטעון את כפתור Google — בדקו חיבור לרשת</span>';
+    };
+    document.head.appendChild(s);
   }
 
   /* ---------------- clients list ---------------- */
