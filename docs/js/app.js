@@ -310,27 +310,39 @@
       guideEl.textContent = a.guidance;
       if (actionSel.value === 'send_template' && !templates.length) {
         fieldsEl.innerHTML = '<div class="hint">טוען תבניות…</div>';
-        try { templates = (await Api.getTemplates(client.id)).templates || []; } catch { templates = []; }
+        try { templates = (await Api.listAllTemplates(client.id)).templates || []; } catch { templates = []; }
       }
       fieldsEl.innerHTML = a.fields.map(f => {
         const val = esc(auto.config[f.k] || '');
         if (actionSel.value === 'send_template' && f.k === 'template_name') {
-          if (!templates.length) return `<label class="field"><span>${esc(f.label)}</span><input class="input" data-k="${f.k}" dir="ltr" value="${val}" placeholder="${esc(f.placeholder || '')}"><span class="hint">לא נמצאו תבניות — יש ליצור תבנית במערכת EasyBizy קודם</span></label>`;
-          const cur = auto.config.template_name || templates[0].name;
-          return `<label class="field"><span>${esc(f.label)} (מתוך התבניות המאושרות ב-EasyBizy)</span>
-            <select class="input" data-k="${f.k}" dir="ltr">${templates.map(t => `<option value="${esc(t.name)}" ${cur === t.name ? 'selected' : ''}>${esc(t.name)} · ${esc(t.language || 'he')}</option>`).join('')}</select>
-            <span class="hint" id="tpl-example"></span></label>`;
+          const cur = auto.config.template_name || '';
+          const names = templates.map(t => t.name);
+          const isManual = cur && !names.includes(cur);
+          const eff = isManual || !templates.length ? cur : (cur || names[0]);
+          const opts = templates.map(t => `<option value="${esc(t.name)}" ${!isManual && eff === t.name ? 'selected' : ''}>${esc(t.name)} · ${esc(t.language || 'he')}</option>`).join('')
+            + `<option value="__manual" ${isManual || !templates.length ? 'selected' : ''}>✏️ הקלדה ידנית…</option>`;
+          return `<label class="field"><span>${esc(f.label)} (מהרשימה שלך או ידנית)</span>
+            <select class="input" id="au-tpl-sel" dir="ltr">${opts}</select>
+            <input class="input" data-k="${f.k}" id="au-tpl-manual" dir="ltr" style="margin-top:8px;${isManual || !templates.length ? '' : 'display:none'}" value="${esc(eff)}" placeholder="שם התבנית בדיוק כפי שמופיע ב-EasyBizy">
+            <span class="hint" id="tpl-example"></span>
+            <span class="hint">השם חייב להתאים לתבנית מאושרת במסוף EasyBizy. ניהול הרשימה: הגדרה ← התבניות שלי.</span></label>`;
         }
         if (f.textarea) return `<label class="field"><span>${esc(f.label)}</span><textarea class="input" data-k="${f.k}" rows="3" placeholder="${esc(f.placeholder || '')}">${val}</textarea></label>`;
         return `<label class="field"><span>${esc(f.label)}</span><input class="input" data-k="${f.k}" ${f.ltr ? 'dir="ltr"' : ''} value="${val}" placeholder="${esc(f.placeholder || '')}"></label>`;
       }).join('');
-      const tplSel = fieldsEl.querySelector('select[data-k=template_name]');
+      const tplSel = fieldsEl.querySelector('#au-tpl-sel');
       if (tplSel) {
-        const showEx = () => {
+        const manual = fieldsEl.querySelector('#au-tpl-manual');
+        tplSel.onchange = () => {
+          const isM = tplSel.value === '__manual';
+          manual.style.display = isM ? 'block' : 'none';
+          if (!isM) manual.value = tplSel.value;
+          else if (templates.some(t => t.name === manual.value)) manual.value = '';
           const t = templates.find(x => x.name === tplSel.value);
-          fieldsEl.querySelector('#tpl-example').textContent = t?.example ? 'תצוגה: ' + t.example : '';
+          fieldsEl.querySelector('#tpl-example').textContent = !isM && t?.example ? 'תצוגה: ' + t.example : '';
         };
-        tplSel.onchange = showEx; showEx();
+        const t0 = templates.find(x => x.name === tplSel.value);
+        if (t0?.example) fieldsEl.querySelector('#tpl-example').textContent = 'תצוגה: ' + t0.example;
       }
     }
     actionSel.onchange = () => { collectFields(); renderActionFields(); };
@@ -380,6 +392,15 @@
         </div>
       </div>
       <div class="card">
+        <h3>התבניות שלי (WhatsApp)</h3>
+        <p class="page-sub" style="margin-bottom:12px">חבילת EasyBizy הנוכחית לא מאפשרת קריאת תבניות דרך ה-API, לכן שומרים כאן את שמות התבניות — והן מופיעות לבחירה בבוטים, באוטומציות ובשיחות. השם חייב להתאים בדיוק לתבנית מאושרת במסוף EasyBizy.</p>
+        <div id="tpl-list"></div>
+        <div style="display:flex;gap:10px;margin-top:10px">
+          <input class="input" dir="ltr" id="tpl-new" placeholder="שם תבנית, למשל appointment_reminder">
+          <button class="btn" id="tpl-add">הוספה</button>
+        </div>
+      </div>
+      <div class="card">
         <h3>רשימת אירועים</h3>
         <p class="page-sub" style="margin-bottom:14px">להפעיל את כל 10 האירועים במסוף EasyBizy ← Webhooks. סימון ✓ = האירוע הגיע אלינו לפחות פעם אחת.</p>
         <div class="checklist">
@@ -391,6 +412,23 @@
         <button class="btn danger" id="del">מחיקת הלקוח וכל הנתונים שלו</button>
       </div>`;
 
+    const tplList = el.querySelector('#tpl-list');
+    const renderTplList = async () => {
+      const { templates: mine } = await Api.getMyTemplates(client.id);
+      tplList.innerHTML = mine.length
+        ? mine.map(t => `<div class="kv"><span class="v mono" dir="ltr">${esc(t.name)}</span><button class="btn danger small" data-tpl="${t.id}">מחיקה</button></div>`).join('')
+        : '<div class="hint">אין תבניות שמורות עדיין.</div>';
+      tplList.querySelectorAll('[data-tpl]').forEach(b => b.onclick = async () => { await Api.deleteMyTemplate(client.id, b.dataset.tpl); renderTplList(); });
+    };
+    el.querySelector('#tpl-add').onclick = async () => {
+      const inp = el.querySelector('#tpl-new');
+      const name = inp.value.trim();
+      if (!name) return;
+      await Api.addMyTemplate(client.id, name);
+      inp.value = '';
+      renderTplList();
+    };
+    renderTplList();
     el.querySelector('#edit').onclick = () => clientModal(client);
     el.querySelector('#test').onclick = async () => {
       const btn = el.querySelector('#test'); btn.disabled = true; btn.textContent = 'בודק…';
@@ -537,26 +575,33 @@
   }
 
   async function templateModal(client, convo) {
-    const { templates } = await Api.getTemplates(client.id);
+    const { templates } = await Api.listAllTemplates(client.id);
     const m = modal(`
       <h3>שליחת תבנית מאושרת</h3>
       ${templates.length ? templates.map((t, i) => `
         <label class="field" style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer">
-          <input type="radio" name="tpl" value="${i}" style="margin-inline-end:8px">${esc(t.name)} <span class="mono" style="color:var(--muted)">(${esc(t.language)})</span>
+          <input type="radio" name="tpl" value="${i}" style="margin-inline-end:8px">${esc(t.name)} <span class="mono" style="color:var(--muted)">(${esc(t.language || 'he')})</span>
           <div class="hint" style="margin-top:4px">${esc(t.example || '')}</div>
-          <div class="hint">פרמטרים: ${t.params.map(p => esc(p)).join(', ') || 'אין'}</div>
-        </label>`).join('') : '<p class="page-sub">אין תבניות מאושרות בחשבון.</p>'}
+          <div class="hint">פרמטרים: ${(t.params || []).map(p => esc(p)).join(', ') || 'אין'}</div>
+        </label>`).join('') : '<p class="page-sub">אין תבניות שמורות עדיין — הוסיפו שמות במסך הגדרה ← התבניות שלי.</p>'}
+      <label class="field"><span>או הקלידו שם תבנית ידנית</span><input class="input" dir="ltr" id="tpl-manual" placeholder="שם בדיוק כמו שמופיע במסוף EasyBizy"></label>
       <div class="modal-actions">
         <button class="btn" id="tpl-send">שליחה</button>
         <button class="btn secondary" id="tpl-cancel">ביטול</button>
       </div>`);
     m.querySelector('#tpl-cancel').onclick = () => m.remove();
     m.querySelector('#tpl-send').onclick = async () => {
-      const sel = m.querySelector('input[name=tpl]:checked');
-      if (!sel) return toast('בחרו תבנית');
-      const t = templates[+sel.value];
-      const params = t.params.map(() => convo.customer_name || '');
-      await Api.sendMessage(client.id, convo.contact_phone, { template_name: t.name, params, customer_name: convo.customer_name });
+      const manualName = m.querySelector('#tpl-manual').value.trim();
+      let name, params;
+      if (manualName) { name = manualName; params = []; }
+      else {
+        const sel = m.querySelector('input[name=tpl]:checked');
+        if (!sel) return toast('בחרו תבנית');
+        const t = templates[+sel.value];
+        name = t.name;
+        params = (t.params || []).map(() => convo.customer_name || '');
+      }
+      await Api.sendMessage(client.id, convo.contact_phone, { template_name: name, params, customer_name: convo.customer_name });
       m.remove(); toast('התבנית נשלחה');
     };
   }
@@ -611,7 +656,7 @@
   async function viewBuilder(clientId, botId) {
     clearInterval(state.convoTimer);
     const { client } = await Api.getClient(clientId);
-    const { templates } = await Api.getTemplates(clientId).catch(() => ({ templates: [] }));
+    const { templates } = await Api.listAllTemplates(clientId);
     let bot = botId
       ? (await Api.getBot(botId)).bot
       : { name: '', trigger_type: 'keywords', keywords: '', event: 'leads.create', steps: [], window_closed_template: '', is_live: false };
@@ -642,8 +687,9 @@
               <label class="field" id="ev-wrap" style="display:none"><span>אירוע</span>
                 <select class="input" id="ev">${ALL_EVENTS.filter(e => !e.startsWith('whatsapp-messages')).map(e => `<option value="${e}">${esc(EVENT_LABELS[e])}</option>`).join('')}</select></label>
               <label class="field"><span>תבנית כשהחלון סגור</span>
-                <select class="input" id="wct"><option value="">— ללא —</option>${templates.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('')}</select>
-                <span class="hint">אם עברו 24 שעות מההודעה האחרונה של הלקוח, צעדי טקסט יוחלפו בתבנית הזו</span></label>
+                <input class="input" id="wct" list="wct-names" dir="ltr" placeholder="— ללא —">
+                <datalist id="wct-names">${templates.map(t => `<option value="${esc(t.name)}"></option>`).join('')}</datalist>
+                <span class="hint">אם עברו 24 שעות מההודעה האחרונה של הלקוח, צעדי טקסט יוחלפו בתבנית הזו. הרשימה מוזנת מ״התבניות שלי״ במסך ההגדרה.</span></label>
             </div>
             <label class="field"><span>שם הבוט</span><input class="input" id="bname" value="${esc(bot.name)}" placeholder="עוזר קביעת תור"></label>
           </div>
@@ -671,7 +717,7 @@
       $('#steps').innerHTML = bot.steps.map((s, i) => stepHtml(s, String(i), i + 1, false)).join('') || '<div class="empty" style="padding:20px">אין צעדים — הבוט לא יעשה כלום בלעדיהם</div>';
       $('#steps').querySelectorAll('.step').forEach(stepEl => {
         const p = stepEl.dataset.path.split(':').map(Number); // [i] or [i, optIdx, k]
-        stepEl.querySelector('[data-a=edit]').onclick = () => stepModal(bot, p, () => renderSteps());
+        stepEl.querySelector('[data-a=edit]').onclick = () => stepModal(bot, p, () => renderSteps(), templates);
         stepEl.querySelector('[data-a=up]').onclick = () => { move(p, -1); renderSteps(); };
         stepEl.querySelector('[data-a=down]').onclick = () => { move(p, 1); renderSteps(); };
         stepEl.querySelector('[data-a=del]').onclick = () => { move(p, null); renderSteps(); };
@@ -683,7 +729,7 @@
           bot.steps[i].branches[opt.value] = bot.steps[i].branches[opt.value] || [];
           bot.steps[i].branches[opt.value].push(out);
           renderSteps();
-        });
+        }, templates);
       });
       renderPreview();
     }
@@ -746,7 +792,7 @@
       }).join('') || '<div class="empty" style="color:var(--muted)">הוסיפו צעד לתצוגה</div>';
     }
 
-    $('#add-step').onclick = () => stepModal(bot, null, (out) => { bot.steps.push(out); renderSteps(); });
+    $('#add-step').onclick = () => stepModal(bot, null, (out) => { bot.steps.push(out); renderSteps(); }, templates);
 
     $('#save').onclick = async () => {
       const body = {
@@ -767,7 +813,7 @@
     renderSteps();
   }
 
-  function stepModal(bot, p, onDone) {
+  function stepModal(bot, p, onDone, templates = []) {
     // p: [i] to edit top-level step i, [i, oi, k] to edit branch step, or null to add a new top-level step
     const isBranch = p && p.length === 3;
     const editing = p !== null;
@@ -797,7 +843,7 @@
           <label class="field"><span>תווית כפתור</span><input class="input" id="f-buttonLabel" value="${esc(s.buttonLabel || '')}"></label>`,
         file: `<label class="field"><span>mediaId (מהעלאה ב-EasyBizy)</span><input class="input" dir="ltr" id="f-mediaId" value="${esc(s.mediaId || '')}"></label>
           <label class="field"><span>כיתוב</span><input class="input" id="f-caption" value="${esc(s.caption || '')}"></label>`,
-        template: `<label class="field"><span>שם התבנית</span><input class="input" dir="ltr" id="f-templateName" value="${esc(s.templateName || '')}"></label>
+        template: `<label class="field"><span>שם התבנית</span><input class="input" dir="ltr" id="f-templateName" list="st-tpl-names" value="${esc(s.templateName || '')}"><datalist id="st-tpl-names">${templates.map(t => `<option value="${esc(t.name)}"></option>`).join('')}</datalist></label>
           <label class="field"><span>פרמטרים (מופרדים בפסיק, אפשר משתנים)</span><input class="input" id="f-params" value="${esc((s.params || []).join(', '))}"></label>`,
         question: `<label class="field"><span>השאלה</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea></label>
           <label class="field"><span>נשמר כמשתנה</span><input class="input" dir="ltr" id="f-saveAs" value="${esc(s.saveAs || '')}"></label>`,

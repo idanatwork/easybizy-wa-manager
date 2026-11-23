@@ -124,7 +124,7 @@ export default {
       }
       if (!(await requireAuth(req, env))) return withCors(json({ error: 'unauthorized' }, 401));
 
-      const body = ['POST', 'PATCH'].includes(req.method) ? await req.json().catch(() => ({})) : {};
+      const body = ['POST', 'PATCH', 'DELETE'].includes(req.method) ? await req.json().catch(() => ({})) : {};
 
       /* clients */
       if (path === '/api/clients' && req.method === 'GET') {
@@ -140,7 +140,7 @@ export default {
           .bind(body.name, body.api_key, body.api_secret, token, body.notes || null).run();
         return withCors(json({ client: clientOut(await getClient(env, r.meta.last_row_id)) }));
       }
-      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|bots|automations|conversations))?$/);
+      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations|conversations))?$/);
       if (cm) {
         const client = await getClient(env, cm[1]);
         if (!client) return withCors(json({ error: 'not found' }, 404));
@@ -185,6 +185,21 @@ export default {
             // back to typing a template name manually.
             return withCors(json({ templates: [], templates_error: String(err.message || err) }));
           }
+        }
+        if (sub === 'mytemplates' && req.method === 'GET') {
+          const rows = (await env.DB.prepare(`SELECT id, name FROM client_templates WHERE client_id=? ORDER BY name`).bind(client.id).all()).results;
+          return withCors(json({ templates: rows }));
+        }
+        if (sub === 'mytemplates' && req.method === 'POST') {
+          const name = String(body.name || '').trim();
+          if (!name) return withCors(json({ error: 'missing name' }, 400));
+          await env.DB.prepare(`INSERT OR IGNORE INTO client_templates (client_id, name) VALUES (?,?)`).bind(client.id, name).run();
+          const row = await env.DB.prepare(`SELECT id, name FROM client_templates WHERE client_id=? AND name=?`).bind(client.id, name).first();
+          return withCors(json({ template: row }));
+        }
+        if (sub === 'mytemplates' && req.method === 'DELETE') {
+          await env.DB.prepare(`DELETE FROM client_templates WHERE client_id=? AND id=?`).bind(client.id, body.id || 0).run();
+          return withCors(json({ ok: true }));
         }
         if (sub === 'bots' && req.method === 'GET') {
           const rows = (await env.DB.prepare(`

@@ -101,3 +101,13 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   received_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_events_client ON webhook_events(client_id, received_at);
+
+-- Per-client saved WhatsApp template names ("my templates"): maintained in the app
+-- because the client's EasyBizy plan may not allow the templates READ endpoint.
+CREATE TABLE IF NOT EXISTS client_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE(client_id, name)
+);

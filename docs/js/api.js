@@ -13,7 +13,9 @@ const Api = (() => {
     events: JSON.parse(JSON.stringify(DEMO.events)),
     templates: JSON.parse(JSON.stringify(DEMO.templates)),
     automations: JSON.parse(JSON.stringify(DEMO.automations)),
+    myTemplates: {},   // clientId -> [{id, name}] ("my templates", saved names)
     nextId: 900,
+    nextTplId: 1,
   };
 
   async function request(path, opts = {}) {
@@ -85,6 +87,36 @@ const Api = (() => {
     async getTemplates(clientId) {
       if (DEMO_MODE) { await delay(); return { templates: d.templates[clientId] || [] }; }
       return request('/api/clients/' + clientId + '/templates');
+    },
+    async getMyTemplates(clientId) {
+      if (DEMO_MODE) { await delay(); return { templates: d.myTemplates[clientId] || [] }; }
+      return request('/api/clients/' + clientId + '/mytemplates');
+    },
+    async addMyTemplate(clientId, name) {
+      if (DEMO_MODE) {
+        await delay();
+        const list = d.myTemplates[clientId] = d.myTemplates[clientId] || [];
+        let t = list.find(x => x.name === name);
+        if (!t) { t = { id: d.nextTplId++, name }; list.push(t); }
+        return { template: t };
+      }
+      return request('/api/clients/' + clientId + '/mytemplates', { method: 'POST', body: { name } });
+    },
+    async deleteMyTemplate(clientId, id) {
+      if (DEMO_MODE) { await delay(); d.myTemplates[clientId] = (d.myTemplates[clientId] || []).filter(t => t.id !== +id); return { ok: true }; }
+      return request('/api/clients/' + clientId + '/mytemplates', { method: 'DELETE', body: { id } });
+    },
+    // EasyBizy templates (if the plan allows READ) merged with the client's saved names.
+    async listAllTemplates(clientId) {
+      const [api, mine] = await Promise.all([
+        this.getTemplates(clientId).catch(() => ({ templates: [] })),
+        this.getMyTemplates(clientId).catch(() => ({ templates: [] })),
+      ]);
+      const seen = new Map();
+      [...(api.templates || []), ...(mine.templates || [])].forEach(t => {
+        if (t && t.name && !seen.has(t.name)) seen.set(t.name, { params: [], language: 'he', ...t });
+      });
+      return { templates: [...seen.values()] };
     },
 
     async listBots(clientId) {
