@@ -4,12 +4,29 @@
   const root = document.getElementById('app');
   let state = { clients: [], currentClient: null, convoTimer: null };
 
+  /* theme: saved choice wins, then ?theme= override, then system preference */
+  const Theme = {
+    init() {
+      const urlTheme = new URLSearchParams(location.search).get('theme');
+      const t = urlTheme || localStorage.getItem('wa-theme') ||
+        (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = t;
+      if (urlTheme) localStorage.setItem('wa-theme', urlTheme);
+    },
+    toggle() {
+      const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = n;
+      localStorage.setItem('wa-theme', n);
+    },
+  };
+  Theme.init();
+
   /* ---------------- shell ---------------- */
   function shell(active, inner) {
     root.innerHTML = `
       <div class="layout">
         <aside class="sidebar">
-          <div class="brand"><span class="logo">W</span> WA Manager</div>
+          <div class="brand"><span class="logo">W</span> WA Manager<button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר" style="margin-inline-start:auto">◐</button></div>
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
           <a class="nav-item ${active === 'bots' ? 'active' : ''}" href="#/bots"><span class="ico">✦</span> בוטים</a>
           <a class="nav-item ${active === 'activity' ? 'active' : ''}" href="#/activity"><span class="ico">≡</span> פעילות</a>
@@ -22,6 +39,7 @@
         <main class="main">${inner}</main>
       </div>`;
     document.getElementById('logout').onclick = (e) => { e.preventDefault(); Api.logout(); };
+    document.getElementById('theme-toggle').onclick = () => Theme.toggle();
   }
 
   /* ---------------- login ---------------- */
