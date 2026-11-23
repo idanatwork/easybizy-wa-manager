@@ -47,7 +47,7 @@
   }
 
   /* ---------------- clients list ---------------- */
-  async function viewClients() {
+  async function viewClients(openAdd) {
     clearInterval(state.convoTimer);
     const { clients } = await Api.listClients();
     state.clients = clients;
@@ -88,6 +88,7 @@
       const k = th.dataset.k; sortDir = (sortK === k) ? -sortDir : 1; sortK = k; render();
     });
     document.getElementById('add').onclick = () => clientModal();
+    if (openAdd) clientModal();
   }
 
   function clientModal(client) {
@@ -259,7 +260,7 @@
           <div class="convo-search"><div class="search-input"><input class="input" id="cq" placeholder="חיפוש שם או מספר"></div></div>
           <div id="cl"></div>
         </div>
-        <div class="chat" id="chat"><div class="empty" style="margin:auto"><div class="big">✉</div>בחרו שיחה</div></div>
+        <div class="chat" id="chat"><div class="empty" style="margin:auto"><div class="big">✉</div>בחרו שיחה מהרשימה</div></div>
       </div>`;
     let current = null;
     const renderList = () => {
@@ -267,11 +268,14 @@
       const rows = conversations.filter(c => !q || (c.customer_name || '').includes(q) || c.contact_phone.includes(q));
       el.querySelector('#cl').innerHTML = rows.map(c => `
         <div class="convo-item ${current === c.id ? 'active' : ''}" data-id="${c.id}">
-          <div class="ci-top"><span class="ci-name">${esc(c.customer_name || 'ללא שם')}</span><span class="ci-time">${fmtTime(c.last_at)}</span></div>
-          <div class="ci-sub">${c.paused ? '■ מועבר לצוות · ' : ''}${esc(c.last_message || '')}</div>
-          <div class="ci-sub num" style="direction:ltr;text-align:right">${esc(c.contact_phone)}</div>
+          <div class="avatar">${esc((c.customer_name || c.contact_phone || '?').trim().charAt(0))}</div>
+          <div class="ci-text">
+            <div class="ci-top"><span class="ci-name">${esc(c.customer_name || 'ללא שם')}</span><span class="ci-time">${fmtTime(c.last_at)}</span></div>
+            <div class="ci-sub">${c.paused ? '■ מועבר לצוות · ' : ''}${esc(c.last_message || '')}</div>
+            <div class="ci-sub num" style="direction:ltr;text-align:right">${esc(c.contact_phone)}</div>
+          </div>
         </div>`).join('') || '<div class="empty">אין שיחות</div>';
-      el.querySelectorAll('.convo-item').forEach(ci => ci.onclick = () => { current = +ci.dataset.id; renderList(); renderChat(conversations.find(c => c.id === current)); });
+      el.querySelectorAll('.convo-item').forEach(ci => ci.onclick = () => { current = +ci.dataset.id; el.querySelector('.convo').classList.add('chat-open'); renderList(); renderChat(conversations.find(c => c.id === current)); });
     };
     el.querySelector('#cq').oninput = renderList;
 
@@ -280,11 +284,14 @@
       const { messages } = await Api.getMessages(c.id);
       el.querySelector('#chat').innerHTML = `
         <div class="chat-head">
+          <button class="btn ghost small chat-back" id="back">→ שיחות</button>
+          <div class="avatar small">${esc((c.customer_name || c.contact_phone || '?').trim().charAt(0))}</div>
           <div><div class="ch-name">${esc(c.customer_name || 'ללא שם')}</div><div class="ch-phone num">${esc(c.contact_phone)}</div></div>
-          ${c.window_open ? `<span class="window-chip open">חלון פתוח · נותרו ${esc(c.window_left || '')}</span>` : '<span class="window-chip closed">חלון סגור — תבנית בלבד</span>'}
-          <div class="grow" style="flex:1"></div>
-          <button class="btn secondary small" id="tpl">שליחת תבנית</button>
-          <button class="btn ${c.paused ? '' : 'secondary'} small" id="pause">${c.paused ? 'החזרת בוט' : 'השהיית בוט'}</button>
+          <div class="ch-actions">
+            ${c.window_open ? `<span class="window-chip open">חלון פתוח · נותרו ${esc(c.window_left || '')}</span>` : '<span class="window-chip closed">חלון סגור — תבנית בלבד</span>'}
+            <button class="btn secondary small" id="tpl">שליחת תבנית</button>
+            <button class="btn ${c.paused ? '' : 'secondary'} small" id="pause">${c.paused ? 'החזרת בוט' : 'השהיית בוט'}</button>
+          </div>
         </div>
         <div class="chat-body" id="cb">
           ${messages.map(m => `
@@ -299,6 +306,7 @@
           <input class="input" id="reply" placeholder="${c.window_open && !c.paused ? 'כתבו תשובה… (שליחה תשהה את הבוט בשיחה)' : c.paused ? 'כתבו תשובה כצוות…' : 'החלון סגור — שליחת תבנית בלבד'}" ${c.window_open ? '' : 'disabled'}>
           <button class="btn" id="send" ${c.window_open ? '' : 'disabled'}>שליחה</button>
         </div>`;
+      el.querySelector('#back').onclick = () => { el.querySelector('.convo').classList.remove('chat-open'); };
       const cb = el.querySelector('#cb'); cb.scrollTop = cb.scrollHeight;
       el.querySelector('#pause').onclick = async () => { await Api.pauseConversation(c.id, !c.paused); c.paused = !c.paused; c.status = c.paused ? 'handoff' : 'active'; renderList(); renderChat(c); toast(c.paused ? 'הבוט מושהה בשיחה זו' : 'הבוט חזר לפעול'); };
       el.querySelector('#tpl').onclick = () => templateModal(client, c);
@@ -660,7 +668,7 @@
     if (!Api.isLoggedIn() && h !== '#/login') return viewLogin();
     const [, page, a, b] = h.split('/');
     if (h === '#/login') return viewLogin();
-    if (page === 'clients') return viewClients();
+    if (page === 'clients') return viewClients(a === 'new');
     if (page === 'bots') return viewBotsPage();
     if (page === 'activity') return viewActivityPage();
     if (page === 'client' && a) {
