@@ -140,7 +140,7 @@ export default {
           .bind(body.name, body.api_key, body.api_secret, token, body.notes || null).run();
         return withCors(json({ client: clientOut(await getClient(env, r.meta.last_row_id)) }));
       }
-      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|bots|conversations))?$/);
+      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|bots|automations|conversations))?$/);
       if (cm) {
         const client = await getClient(env, cm[1]);
         if (!client) return withCors(json({ error: 'not found' }, 404));
@@ -177,8 +177,14 @@ export default {
           }
         }
         if (sub === 'templates' && req.method === 'GET') {
-          const data = await eb.templates(client, url.searchParams.get('language') || 'he');
-          return withCors(json({ templates: data.templates || data || [] }));
+          try {
+            const data = await eb.templates(client, url.searchParams.get('language') || 'he');
+            return withCors(json({ templates: data.templates || data || [] }));
+          } catch (err) {
+            // e.g. the client's EasyBizy plan lacks template read access; the UI falls
+            // back to typing a template name manually.
+            return withCors(json({ templates: [], templates_error: String(err.message || err) }));
+          }
         }
         if (sub === 'bots' && req.method === 'GET') {
           const rows = (await env.DB.prepare(`

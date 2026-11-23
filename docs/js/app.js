@@ -611,7 +611,7 @@
   async function viewBuilder(clientId, botId) {
     clearInterval(state.convoTimer);
     const { client } = await Api.getClient(clientId);
-    const { templates } = await Api.getTemplates(clientId);
+    const { templates } = await Api.getTemplates(clientId).catch(() => ({ templates: [] }));
     let bot = botId
       ? (await Api.getBot(botId)).bot
       : { name: '', trigger_type: 'keywords', keywords: '', event: 'leads.create', steps: [], window_closed_template: '', is_live: false };
