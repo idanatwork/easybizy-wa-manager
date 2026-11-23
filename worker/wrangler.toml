@@ -1,0 +1,15 @@
+name = "wa-manager"
+main = "src/index.js"
+compatibility_date = "2026-11-23"
+
+# Static console origin allowed to call this API (the GitHub Pages site).
+[vars]
+ALLOWED_ORIGIN = "https://idanatwork.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wa-manager"
+database_id = "REPLACE_WITH_D1_ID"   # from: wrangler d1 create wa-manager
+
+# Secrets (never in the repo):
+#   wrangler secret put ADMIN_PASSWORD   — shared team password for the console
