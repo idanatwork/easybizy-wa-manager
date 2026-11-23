@@ -90,20 +90,7 @@ const DEMO = (() => {
     ],
   };
 
-  const events = [
-    { id: 501, client_id: 1, client_name: "סטודיו ליאור ביוטי", bot_id: 1, bot_name: "עוזר קביעת תור", event_type: "whatsapp-messages.received", result: "bot_ran", details: "עוזר קביעת תור · שלב 2", received_at: ago(18),
-      payload: { id: "evt_01J9W2", resource: "whatsapp-messages", action: "received", version: "v1", timestamp: ago(18), account: { contextId: "ctx_11", name: "Studio Lior Beauty" }, data: { id: "wamid.HB2", direction: "inbound", contentType: "selection", selection: { value: "book", title: "קביעת תור" }, customer: { name: "דנה כהן", phone: "+972525550198" } } } },
-    { id: 502, client_id: 2, client_name: "ד״ר חדד רפואת שיניים", bot_id: 5, bot_name: "תזכורת תור למרפאה", event_type: "appointments.create", result: "bot_ran", details: "נשלחה תבנית אישור", received_at: ago(50),
-      payload: { id: "evt_01J9M7", resource: "appointments", action: "create", version: "v1", timestamp: ago(50), account: { contextId: "ctx_22", name: "Dr. Haddad Dental" }, data: { id: 9021, customerId: 4021, startTime: "2026-11-24T08:30:00.000Z", endTime: "2026-11-24T09:00:00.000Z" } } },
-    { id: 503, client_id: 1, client_name: "סטודיו ליאור ביוטי", bot_id: null, bot_name: null, event_type: "whatsapp-messages.failed", result: "failed", details: "131026 · number unreachable", received_at: ago(102),
-      payload: { id: "evt_01J8F1", resource: "whatsapp-messages", action: "failed", version: "v1", timestamp: ago(102), account: { contextId: "ctx_11", name: "Studio Lior Beauty" }, data: { id: "wamid.HA1", direction: "outbound", error: "131026: Receiver is incapable of receiving this message" } } },
-    { id: 504, client_id: 1, client_name: "סטודיו ליאור ביוטי", bot_id: 4, bot_name: "תפריט גיבוי", event_type: "whatsapp-messages.received", result: "bot_ran", details: "תפריט גיבוי · שלב 1", received_at: ago(130),
-      payload: { id: "evt_01J88Q", resource: "whatsapp-messages", action: "received", version: "v1", timestamp: ago(130), account: { contextId: "ctx_11", name: "Studio Lior Beauty" }, data: { id: "wamid.H9Z", direction: "inbound", contentType: "text", text: "מה השעות?", customer: { name: null, phone: "+972507771029" } } } },
-    { id: 505, client_id: 2, client_name: "ד״ר חדד רפואת שיניים", bot_id: null, bot_name: null, event_type: "leads.create", result: "no_bot", details: "אין בוט פעיל לאירוע", received_at: ago(200),
-      payload: { id: "evt_01J7T2", resource: "leads", action: "create", version: "v1", timestamp: ago(200), account: { contextId: "ctx_22", name: "Dr. Haddad Dental" }, data: { id: 551, name: "מאיר אברהם", mobile: "+972537770011" } } },
-    { id: 506, client_id: 1, client_name: "סטודיו ליאור ביוטי", bot_id: 1, bot_name: "עוזר קביעת תור", event_type: "whatsapp-messages.received", result: "bot_ran", details: "עוזר קביעת תור · שלב 1", received_at: ago(300),
-      payload: { id: "evt_01J6K9", resource: "whatsapp-messages", action: "received", version: "v1", timestamp: ago(300), account: { contextId: "ctx_11", name: "Studio Lior Beauty" }, data: { id: "wamid.H7Y", direction: "inbound", contentType: "text", text: "אפשר תור מחר?", customer: { name: "דנה כהן", phone: "+972525550198" } } } },
-  ];
+  const events = [];
 
   const templates = {
     1: [

@@ -523,7 +523,7 @@
           <td><div class="cell-sub mono">${esc(e.event_type)}</div>${esc(EVENT_LABELS[e.event_type] || '')}</td>
           <td>${resultBadge(e.result)}</td>
           <td class="cell-sub">${esc(e.details || '')}</td>
-        </tr>`).join('') || '<tr><td colspan="5"><div class="empty">אין אירועים</div></td></tr>';
+        </tr>`).join('') || `<tr><td colspan="5"><div class="empty" style="padding:56px 20px"><div class="big">≡</div>אין פעילות עדיין<br><span class="cell-sub" style="font-weight:400">כש-webhook יגיע מ-EasyBizy הוא יופיע כאן עם התוצאה שלו</span></div></td></tr>`;
       el.querySelectorAll('#at-body tr[data-id]').forEach(tr => tr.onclick = () => {
         const e = events.find(x => x.id === +tr.dataset.id);
         modal(`<h3 class="mono" style="direction:ltr;text-align:left">${esc(e.event_type)}</h3>
