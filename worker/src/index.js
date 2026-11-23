@@ -202,7 +202,7 @@ export default {
           const today = new Date().toISOString().slice(0, 10);
           const t = byDay[today] || { runs: 0, errors: 0 };
           const active = await env.DB.prepare(`SELECT COUNT(*) AS c FROM bot_sessions WHERE client_id=? AND status IN ('active','waiting','automation_handoff')`).bind(client.id).first();
-          const topBots = (await env.DB.prepare(`SELECT b.name AS name, COUNT(*) AS runs FROM bot_sessions s JOIN bots b ON b.id=s.bot_id WHERE s.client_id=? AND s.created_at > ${since30} GROUP BY s.bot_id ORDER BY runs DESC LIMIT 3`).bind(client.id).all()).results;
+          const topBots = (await env.DB.prepare(`SELECT b.name AS name, COUNT(*) AS runs FROM bot_sessions s JOIN bots b ON b.id=s.bot_id WHERE s.client_id=? AND s.started_at > ${since30} GROUP BY s.bot_id ORDER BY runs DESC LIMIT 3`).bind(client.id).all()).results;
           const topAutos = (await env.DB.prepare(`SELECT event_type AS name, COUNT(*) AS runs FROM webhook_events WHERE client_id=? AND result='automation_ran' AND received_at > ${since30} GROUP BY event_type ORDER BY runs DESC LIMIT 3`).bind(client.id).all()).results;
           const errs = (await env.DB.prepare(`SELECT event_type, details, received_at FROM webhook_events WHERE client_id=? AND result='failed' ORDER BY id DESC LIMIT 5`).bind(client.id).all()).results;
           return withCors(json({ ok: true, dash: {
