@@ -8,8 +8,6 @@ const Api = (() => {
   const d = {
     clients: JSON.parse(JSON.stringify(DEMO.clients)),
     bots: JSON.parse(JSON.stringify(DEMO.bots)),
-    conversations: JSON.parse(JSON.stringify(DEMO.conversations)),
-    messages: JSON.parse(JSON.stringify(DEMO.messages)),
     events: JSON.parse(JSON.stringify(DEMO.events)),
     templates: JSON.parse(JSON.stringify(DEMO.templates)),
     automations: JSON.parse(JSON.stringify(DEMO.automations)),
@@ -183,33 +181,6 @@ const Api = (() => {
     async deleteAutomation(id) {
       if (DEMO_MODE) { await delay(); d.automations = d.automations.filter(a => a.id !== +id); return { ok: true }; }
       return request('/api/automations/' + id, { method: 'DELETE' });
-    },
-
-    async listConversations(clientId) {
-      if (DEMO_MODE) { await delay(); return { conversations: d.conversations.filter(c => c.client_id === +clientId) }; }
-      return request('/api/clients/' + clientId + '/conversations');
-    },
-    async getMessages(convoId) {
-      if (DEMO_MODE) { await delay(); return { messages: d.messages[convoId] || [] }; }
-      return request('/api/conversations/' + convoId + '/messages');
-    },
-    async sendMessage(clientId, phone, body) {
-      if (DEMO_MODE) {
-        await delay(400);
-        const convo = d.conversations.find(c => c.client_id === +clientId && c.contact_phone === phone);
-        if (convo) {
-          (d.messages[convo.id] = d.messages[convo.id] || []).push({
-            id: ++d.nextId, direction: 'outbound', sent_by: 'team', content_type: body.template_name ? 'template' : 'text',
-            text: body.text || ('תבנית: ' + body.template_name), delivery_status: 'sent', at: new Date().toISOString(),
-          });
-        }
-        return { ok: true };
-      }
-      return request('/api/conversations/send', { method: 'POST', body: { client_id: clientId, phone, ...body } });
-    },
-    async pauseConversation(convoId, paused) {
-      if (DEMO_MODE) { await delay(); const c = d.conversations.find(x => x.id === +convoId); c.paused = paused; c.status = paused ? 'handoff' : 'active'; return { ok: true }; }
-      return request('/api/conversations/pause', { method: 'POST', body: { conversation_id: convoId, paused } });
     },
 
     async listActivity(params = {}) {

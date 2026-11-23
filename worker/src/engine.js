@@ -19,11 +19,8 @@ function interpolate(text, ctx) {
   });
 }
 
-async function logMessage(db, clientId, sessionId, phone, name, dir, sentBy, type, text, templateName, status, ebId, error) {
-  await db.prepare(`INSERT INTO messages (client_id, session_id, contact_phone, customer_name, direction, sent_by, content_type, message_text, template_name, delivery_status, easybizy_message_id, error)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(clientId, sessionId, phone, name, dir, sentBy, type, text ?? null, templateName ?? null, status, ebId ?? null, error ?? null).run();
-}
+/* Privacy: no message content is ever stored. Flow state lives only in
+   bot_sessions (current step + collected answers), expired after 48h idle. */
 
 /* Send one free-form message honoring the 24h window; falls back to the bot's
    window-closed template when the window is shut. Returns what was sent. */
@@ -51,32 +48,26 @@ async function runSteps(env, client, bot, session, steps, startIdx, ctx) {
       if (s.type === 'text') {
         const text = interpolate(s.text, ctx);
         await sendSmart(client, bot, session.contact_phone, ctx, { type: 'text', text });
-        await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', 'text', text, null, 'sent');
       } else if (s.type === 'buttons') {
         const text = interpolate(s.text, ctx);
         const buttons = (s.options || []).slice(0, 10).map(o => ({ type: 'QUICK_REPLY', label: o.label, value: o.value }));
         const payload = { type: 'text', text, buttons };
         if (buttons.length > 3) payload.buttonsTitle = s.buttonsTitle || 'בחרו';
         await sendSmart(client, bot, session.contact_phone, ctx, payload);
-        await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', 'buttons', text, null, 'sent');
         return { waiting: true, at: i };               // wait for the tap
       } else if (s.type === 'link') {
         const text = interpolate(s.text, ctx);
         await sendSmart(client, bot, session.contact_phone, ctx, {
           type: 'text', text, buttons: [{ type: 'URL', label: s.buttonLabel || 'פתיחה', url: s.url }],
         });
-        await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', 'link', text, null, 'sent');
       } else if (s.type === 'file') {
         await sendSmart(client, bot, session.contact_phone, ctx, { type: 'document', mediaId: s.mediaId, text: interpolate(s.caption || '', ctx) });
-        await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', 'file', s.caption || '', null, 'sent');
       } else if (s.type === 'template') {
         const params = (s.params || []).map(p => interpolate(p, ctx));
         await eb.sendTemplate(client, { phone: session.contact_phone, templateName: s.templateName, language: s.language || 'he', params, customerName: ctx.customerName });
-        await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', 'template', null, s.templateName, 'sent');
       } else if (s.type === 'question') {
         const text = interpolate(s.text, ctx);
         await sendSmart(client, bot, session.contact_phone, ctx, { type: 'text', text });
-        await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', 'question', text, null, 'sent');
         return { waiting: true, at: i, question: s.saveAs || 'answer' };
       } else if (s.type === 'condition') {
         const val = String(ctx.answers[s.field] ?? ctx.trigger?.[s.field] ?? '');
@@ -100,7 +91,6 @@ async function runSteps(env, client, bot, session, steps, startIdx, ctx) {
         return { done: true, handoff: true };
       }
     } catch (err) {
-      await logMessage(db, client.id, session.id, session.contact_phone, ctx.customerName, 'outbound', 'bot', s.type, `step ${i + 1} failed`, null, 'failed', null, String(err.message || err));
       throw err;
     }
   }
@@ -182,11 +172,8 @@ export async function handleEvent(env, client, envelope) {
   const eventType = `${envelope.resource}.${envelope.action}`;
   const data = envelope.data || {};
 
-  // delivery status updates for messages we sent
+  // delivery status updates: logged as activity only, nothing to update
   if (eventType === 'whatsapp-messages.delivered' || eventType === 'whatsapp-messages.failed') {
-    const st = eventType.endsWith('failed') ? 'failed' : 'delivered';
-    if (data.id) await db.prepare(`UPDATE messages SET delivery_status=?, error=? WHERE easybizy_message_id=? OR id=(SELECT id FROM messages WHERE client_id=? ORDER BY id DESC LIMIT 1)`)
-      .bind(st, data.error ?? null, data.id, client.id).run();
     return { result: eventType.endsWith('failed') ? 'failed' : 'ignored', details: data.error || 'נמסר' };
   }
 
@@ -194,7 +181,6 @@ export async function handleEvent(env, client, envelope) {
     const { phone, name } = extractContact(data);
     if (!phone) return { result: 'ignored', details: 'לא זוהה מספר שולח' };
     const incoming = { text: data.text || '', selection: data.selection || null };
-    await logMessage(db, client.id, null, phone, name, 'inbound', 'customer', data.contentType || 'text', data.text || (data.selection ? `Tapped: ${data.selection.title}` : ''), null, 'received', data.id);
 
     // active session continues (also sessions opened by an automation handoff)
     const session = await db.prepare(`SELECT * FROM bot_sessions WHERE client_id=? AND contact_phone=? AND status IN ('active','waiting','automation_handoff') AND paused=0 ORDER BY id DESC LIMIT 1`)
@@ -272,14 +258,12 @@ export async function runAutomations(env, client, envelope) {
       if (a.action === 'send_template') {
         if (!ctx.phone) throw new Error('אין מספר טלפון באירוע');
         await eb.sendTemplate(client, { phone: ctx.phone, templateName: cfg.template_name, params: ctx.name ? [ctx.name] : [], customerName: ctx.name });
-        await logMessage(db, client.id, null, ctx.phone, ctx.name, 'outbound', 'bot', 'template', null, cfg.template_name, 'sent', null);
         detail = `נשלחה תבנית ${cfg.template_name}`;
       } else if (a.action === 'send_text') {
         if (!ctx.phone) throw new Error('אין מספר טלפון באירוע');
         const win = await eb.conversationWindow(client, ctx.phone);
         if (!win.isOpen) throw new Error('חלון 24 השעות סגור — נדרשת תבנית');
         await eb.sendMessage(client, { to: { phoneNumber: ctx.phone }, type: 'text', text: interpolate(cfg.text || '', ctx) });
-        await logMessage(db, client.id, null, ctx.phone, ctx.name, 'outbound', 'bot', 'text', interpolate(cfg.text || '', ctx), null, 'sent', null);
         detail = 'נשלחה הודעת טקסט';
       } else if (a.action === 'create_lead') {
         await eb.createLead(client, { name: ctx.name || ctx.phone, mobile: ctx.phone, note: interpolate(cfg.note || '', ctx) });

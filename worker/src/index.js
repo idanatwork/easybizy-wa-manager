@@ -3,7 +3,7 @@
      POST /hook/:token            — EasyBizy webhook (per-client unguessable token)
      POST /api/login              — console password check
      POST /api/auth/google       — Google ID-token sign-in (allowlisted emails only)
-     /api/* (Bearer session token) — clients, bots, automations, conversations, activity
+     /api/* (Bearer session token) — clients, bots, automations, activity
    Secrets live only here (D1 + worker secrets); the public static site holds none. */
 import * as eb from './easybizy.js';
 import { handleEvent, runAutomations } from './engine.js';
@@ -106,8 +106,11 @@ export default {
         }
         const seen = new Set(JSON.parse(client.events_seen || '[]'));
         seen.add(eventType);
-        await env.DB.prepare(`INSERT INTO webhook_events (client_id, event_type, result, details, payload) VALUES (?,?,?,?,?)`)
-          .bind(client.id, eventType, outcome.result, outcome.details, JSON.stringify(envelope)).run();
+        // flow-state and log hygiene: sessions expire after 48h idle, events after 30 days
+        await env.DB.prepare(`DELETE FROM bot_sessions WHERE client_id=? AND last_activity_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-2 days')`).bind(client.id).run();
+        await env.DB.prepare(`DELETE FROM webhook_events WHERE received_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days')`).run();
+        await env.DB.prepare(`INSERT INTO webhook_events (client_id, event_type, result, details) VALUES (?,?,?,?)`)
+          .bind(client.id, eventType, outcome.result, outcome.details).run();
         await env.DB.prepare(`UPDATE clients SET last_event_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'), events_seen=? WHERE id=?`)
           .bind(JSON.stringify([...seen]), client.id).run();
         return withCors(json({ ok: true, ...outcome }));
@@ -140,7 +143,7 @@ export default {
           .bind(body.name, body.api_key, body.api_secret, token, body.notes || null).run();
         return withCors(json({ client: clientOut(await getClient(env, r.meta.last_row_id)) }));
       }
-      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations|conversations))?$/);
+      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations))?$/);
       if (cm) {
         const client = await getClient(env, cm[1]);
         if (!client) return withCors(json({ error: 'not found' }, 404));
@@ -223,15 +226,6 @@ export default {
               body.handoff_bot_id || null, body.is_active ? 1 : 0).run();
           return withCors(json({ automation: { id: r.meta.last_row_id, ...body } }));
         }
-        if (sub === 'conversations' && req.method === 'GET') {
-          const rows = (await env.DB.prepare(`
-            SELECT s.*, b.name AS bot_name,
-              (SELECT message_text FROM messages m WHERE m.client_id=s.client_id AND m.contact_phone=s.contact_phone ORDER BY m.id DESC LIMIT 1) AS last_message,
-              (SELECT created_at FROM messages m WHERE m.client_id=s.client_id AND m.contact_phone=s.contact_phone ORDER BY m.id DESC LIMIT 1) AS last_at
-            FROM bot_sessions s LEFT JOIN bots b ON b.id=s.bot_id
-            WHERE s.client_id=? ORDER BY s.last_activity_at DESC LIMIT 100`).bind(client.id).all()).results;
-          return withCors(json({ conversations: rows }));
-        }
       }
 
       /* bots */
@@ -279,36 +273,8 @@ export default {
         }
       }
 
-      /* conversations: messages, send, pause */
-      const msgMatch = path.match(/^\/api\/conversations\/(\d+)\/messages$/);
-      if (msgMatch && req.method === 'GET') {
-        const s = await env.DB.prepare(`SELECT * FROM bot_sessions WHERE id=?`).bind(msgMatch[1]).first();
-        if (!s) return withCors(json({ error: 'not found' }, 404));
-        const rows = (await env.DB.prepare(`SELECT * FROM messages WHERE client_id=? AND contact_phone=? ORDER BY id ASC LIMIT 300`).bind(s.client_id, s.contact_phone).all()).results;
-        return withCors(json({ messages: rows }));
-      }
-      if (path === '/api/conversations/send' && req.method === 'POST') {
-        const client = await getClient(env, body.client_id);
-        if (!client) return withCors(json({ error: 'unknown client' }, 404));
-        let res;
-        if (body.template_name) {
-          res = await eb.sendTemplate(client, { phone: body.phone, templateName: body.template_name, params: body.params || [], customerName: body.customer_name });
-        } else {
-          const { isOpen } = await eb.conversationWindow(client, body.phone);
-          if (!isOpen) return withCors(json({ error: 'window_closed', message: 'חלון ה-24 שעות סגור — אפשר לשלוח תבנית בלבד' }, 409));
-          res = await eb.sendMessage(client, { to: { phoneNumber: body.phone }, type: 'text', text: body.text });
-        }
-        await env.DB.prepare(`INSERT INTO messages (client_id, contact_phone, direction, sent_by, content_type, message_text, template_name, delivery_status) VALUES (?,?,?,?,?,?,?,'sent')`)
-          .bind(client.id, body.phone, 'outbound', 'team', body.template_name ? 'template' : 'text', body.text || null, body.template_name || null).run();
-        return withCors(json({ ok: true, res }));
-      }
-      if (path === '/api/conversations/pause' && req.method === 'POST') {
-        await env.DB.prepare(`UPDATE bot_sessions SET paused=?, status=CASE WHEN ?=1 THEN 'handoff' ELSE 'active' END, last_activity_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`)
-          .bind(body.paused ? 1 : 0, body.paused ? 1 : 0, body.conversation_id).run();
-        return withCors(json({ ok: true }));
-      }
-
-      /* activity log */
+      /* activity log: event type, outcome and short status details only.
+         No message content and no webhook payloads are stored or served. */
       if (path === '/api/activity' && req.method === 'GET') {
         const p = ['SELECT e.*, c.name AS client_name, b.name AS bot_name FROM webhook_events e LEFT JOIN clients c ON c.id=e.client_id LEFT JOIN bots b ON b.id=e.bot_id WHERE 1=1'];
         const binds = [];
@@ -317,7 +283,7 @@ export default {
         if (url.searchParams.get('result')) { p.push('AND e.result=?'); binds.push(url.searchParams.get('result')); }
         p.push('ORDER BY e.id DESC LIMIT 200');
         const rows = (await env.DB.prepare(p.join(' ')).bind(...binds).all()).results;
-        return withCors(json({ events: rows.map(e => ({ ...e, payload: JSON.parse(e.payload || 'null') })) }));
+        return withCors(json({ events: rows.map(({ payload, ...e }) => e) }));
       }
 
       return withCors(json({ error: 'not found' }, 404));

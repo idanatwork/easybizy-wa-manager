@@ -22,7 +22,7 @@
   Theme.init();
 
   /* ---------------- shell ---------------- */
-  const CLIENT_SECTIONS = [['setup', 'הגדרה', '▤'], ['bots', 'בוטים', '✦'], ['automations', 'אוטומציות', '⚡'], ['convos', 'שיחות', '✉'], ['activity', 'פעילות', '≡']];
+  const CLIENT_SECTIONS = [['setup', 'הגדרה', '▤'], ['bots', 'בוטים', '✦'], ['automations', 'אוטומציות', '⚡'], ['activity', 'פעילות', '≡']];
 
   /* active: 'clients' for the global list. clientNav: { client, section } renders
      the sidebar as that client's menu instead. */
@@ -213,7 +213,6 @@
     if (tab === 'setup') renderSetup(body, client);
     if (tab === 'bots') renderBots(body, client);
     if (tab === 'automations') renderAutomations(body, client);
-    if (tab === 'convos') renderConvos(body, client);
     if (tab === 'activity') renderActivity(body, client.id);
   }
 
@@ -491,120 +490,6 @@
     return TRIGGER_LABELS[b.trigger_type] || b.trigger_type;
   }
 
-  /* ---- conversations tab ---- */
-  async function renderConvos(el, client) {
-    const { conversations } = await Api.listConversations(client.id);
-    el.innerHTML = `
-      <div class="convo">
-        <div class="convo-list">
-          <div class="convo-search"><div class="search-input"><input class="input" id="cq" placeholder="חיפוש שם או מספר"></div></div>
-          <div id="cl"></div>
-        </div>
-        <div class="chat" id="chat"><div class="empty" style="margin:auto"><div class="big">✉</div>בחרו שיחה מהרשימה</div></div>
-      </div>`;
-    let current = null;
-    const renderList = () => {
-      const q = el.querySelector('#cq').value.trim();
-      const rows = conversations.filter(c => !q || (c.customer_name || '').includes(q) || c.contact_phone.includes(q));
-      el.querySelector('#cl').innerHTML = rows.map(c => `
-        <div class="convo-item ${current === c.id ? 'active' : ''}" data-id="${c.id}">
-          <div class="avatar">${esc((c.customer_name || c.contact_phone || '?').trim().charAt(0))}</div>
-          <div class="ci-text">
-            <div class="ci-top"><span class="ci-name">${esc(c.customer_name || 'ללא שם')}</span><span class="ci-time">${fmtTime(c.last_at)}</span></div>
-            <div class="ci-sub">${c.paused ? '■ מועבר לצוות · ' : ''}${esc(c.last_message || '')}</div>
-            <div class="ci-sub num" style="direction:ltr;text-align:right">${esc(c.contact_phone)}</div>
-          </div>
-        </div>`).join('') || '<div class="empty">אין שיחות</div>';
-      el.querySelectorAll('.convo-item').forEach(ci => ci.onclick = () => { current = +ci.dataset.id; el.querySelector('.convo').classList.add('chat-open'); renderList(); renderChat(conversations.find(c => c.id === current)); });
-    };
-    el.querySelector('#cq').oninput = renderList;
-
-    const renderChat = async (c) => {
-      if (!c) return;
-      const { messages } = await Api.getMessages(c.id);
-      el.querySelector('#chat').innerHTML = `
-        <div class="chat-head">
-          <button class="btn ghost small chat-back" id="back">→ שיחות</button>
-          <div class="avatar small">${esc((c.customer_name || c.contact_phone || '?').trim().charAt(0))}</div>
-          <div><div class="ch-name">${esc(c.customer_name || 'ללא שם')}</div><div class="ch-phone num">${esc(c.contact_phone)}</div></div>
-          <div class="ch-actions">
-            ${c.window_open ? `<span class="window-chip open">חלון פתוח · נותרו ${esc(c.window_left || '')}</span>` : '<span class="window-chip closed">חלון סגור — תבנית בלבד</span>'}
-            <button class="btn secondary small" id="tpl">שליחת תבנית</button>
-            <button class="btn ${c.paused ? '' : 'secondary'} small" id="pause">${c.paused ? 'החזרת בוט' : 'השהיית בוט'}</button>
-          </div>
-        </div>
-        <div class="chat-body" id="cb">
-          ${messages.map(m => `
-            <div class="bubble ${m.direction === 'outbound' ? 'out' : ''}">
-              ${m.template_name ? `<div class="b-header">▤ ${esc(m.template_name)}</div>` : ''}
-              ${esc(m.text || '')}
-              ${(m.buttons || []).map(b => `<span class="bubble-btn">${esc(b)}</span>`).join('')}
-              <div class="meta">${m.sent_by === 'bot' ? 'בוט · ' : m.sent_by === 'team' ? 'צוות · ' : ''}${fmtTime(m.at)} · ${esc(statusLabel(m.delivery_status))}</div>
-            </div>`).join('')}
-        </div>
-        <div class="chat-input">
-          <input class="input" id="reply" placeholder="${c.window_open && !c.paused ? 'כתבו תשובה… (שליחה תשהה את הבוט בשיחה)' : c.paused ? 'כתבו תשובה כצוות…' : 'החלון סגור — שליחת תבנית בלבד'}" ${c.window_open ? '' : 'disabled'}>
-          <button class="btn" id="send" ${c.window_open ? '' : 'disabled'}>שליחה</button>
-        </div>`;
-      el.querySelector('#back').onclick = () => { el.querySelector('.convo').classList.remove('chat-open'); };
-      const cb = el.querySelector('#cb'); cb.scrollTop = cb.scrollHeight;
-      el.querySelector('#pause').onclick = async () => { await Api.pauseConversation(c.id, !c.paused); c.paused = !c.paused; c.status = c.paused ? 'handoff' : 'active'; renderList(); renderChat(c); toast(c.paused ? 'הבוט מושהה בשיחה זו' : 'הבוט חזר לפעול'); };
-      el.querySelector('#tpl').onclick = () => templateModal(client, c);
-      const doSend = async () => {
-        const inp = el.querySelector('#reply'); const text = inp.value.trim();
-        if (!text) return;
-        await Api.sendMessage(client.id, c.contact_phone, { text });
-        if (!c.paused) await Api.pauseConversation(c.id, true);
-        c.paused = true; renderChat(c);
-      };
-      el.querySelector('#send').onclick = doSend;
-      el.querySelector('#reply').onkeydown = (e) => { if (e.key === 'Enter') doSend(); };
-    };
-
-    clearInterval(state.convoTimer);
-    state.convoTimer = setInterval(async () => {
-      if (!location.hash.includes('/convos')) return clearInterval(state.convoTimer);
-      if (current) { const c = conversations.find(x => x.id === current); if (c) renderChat(c); }
-    }, 10000);
-    renderList();
-    if (conversations.length) { current = conversations[0].id; renderList(); renderChat(conversations[0]); }
-  }
-
-  function statusLabel(s) {
-    return { sent: 'נשלח', delivered: 'נמסר ✓', failed: 'נכשל', received: 'התקבל' }[s] || s || '';
-  }
-
-  async function templateModal(client, convo) {
-    const { templates } = await Api.listAllTemplates(client.id);
-    const m = modal(`
-      <h3>שליחת תבנית מאושרת</h3>
-      ${templates.length ? templates.map((t, i) => `
-        <label class="field" style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer">
-          <input type="radio" name="tpl" value="${i}" style="margin-inline-end:8px">${esc(t.name)} <span class="mono" style="color:var(--muted)">(${esc(t.language || 'he')})</span>
-          <div class="hint" style="margin-top:4px">${esc(t.example || '')}</div>
-          <div class="hint">פרמטרים: ${(t.params || []).map(p => esc(p)).join(', ') || 'אין'}</div>
-        </label>`).join('') : '<p class="page-sub">אין תבניות שמורות עדיין — הוסיפו שמות במסך הגדרה ← התבניות שלי.</p>'}
-      <label class="field"><span>או הקלידו שם תבנית ידנית</span><input class="input" dir="ltr" id="tpl-manual" placeholder="שם בדיוק כמו שמופיע במסוף EasyBizy"></label>
-      <div class="modal-actions">
-        <button class="btn" id="tpl-send">שליחה</button>
-        <button class="btn secondary" id="tpl-cancel">ביטול</button>
-      </div>`);
-    m.querySelector('#tpl-cancel').onclick = () => m.remove();
-    m.querySelector('#tpl-send').onclick = async () => {
-      const manualName = m.querySelector('#tpl-manual').value.trim();
-      let name, params;
-      if (manualName) { name = manualName; params = []; }
-      else {
-        const sel = m.querySelector('input[name=tpl]:checked');
-        if (!sel) return toast('בחרו תבנית');
-        const t = templates[+sel.value];
-        name = t.name;
-        params = (t.params || []).map(() => convo.customer_name || '');
-      }
-      await Api.sendMessage(client.id, convo.contact_phone, { template_name: name, params, customer_name: convo.customer_name });
-      m.remove(); toast('התבנית נשלחה');
-    };
-  }
 
   /* ---- activity tab / page ---- */
   async function renderActivity(el, clientId) {
@@ -618,13 +503,6 @@
           <td>${resultBadge(e.result)}</td>
           <td class="cell-sub">${esc(e.details || '')}</td>
         </tr>`).join('') || `<tr><td colspan="5"><div class="empty" style="padding:56px 20px"><div class="big">≡</div>אין פעילות עדיין<br><span class="cell-sub" style="font-weight:400">כש-webhook יגיע מ-EasyBizy הוא יופיע כאן עם התוצאה שלו</span></div></td></tr>`;
-      el.querySelectorAll('#at-body tr[data-id]').forEach(tr => tr.onclick = () => {
-        const e = events.find(x => x.id === +tr.dataset.id);
-        modal(`<h3 class="mono" style="direction:ltr;text-align:left">${esc(e.event_type)}</h3>
-          <p class="page-sub">${fmtDateTime(e.received_at)} · ${esc(e.client_name || '')} ${e.bot_name ? '· ' + esc(e.bot_name) : ''}</p>
-          <pre class="payload">${esc(JSON.stringify(e.payload, null, 2))}</pre>
-          <div class="modal-actions"><button class="btn secondary" onclick="this.closest('.modal-back').remove()">סגירה</button></div>`);
-      });
     };
     el.innerHTML = `
       <div class="filters">
@@ -647,7 +525,7 @@
     await Api.listClients().then(r => state.clients = r.clients);
     shell('activity', `
       <div class="page-head"><h1>פעילות</h1></div>
-      <p class="page-sub">כל webhook ש-EasyBizy שלחה, מה האפליקציה עשתה איתו, וכל הודעה שנכשלה — לצורך פתרון תקלות.</p>
+      <p class="page-sub">כל webhook ש-EasyBizy שלחה ומה המערכת עשתה איתו — סטטוסים בלבד, לצורך פתרון תקלות. המערכת לא שומרת ולא מציגה תוכן הודעות.</p>
       <div id="abody"></div>`);
     renderActivity(document.getElementById('abody'), null);
   }

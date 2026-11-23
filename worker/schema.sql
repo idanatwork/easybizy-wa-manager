@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS automations (
 );
 CREATE INDEX IF NOT EXISTS idx_automations_client ON automations(client_id, trigger_event);
 
+-- Flow state only (privacy: no message content is ever stored anywhere).
+-- Rows expire: deleted after 48h without activity (enforced in the Worker).
 CREATE TABLE IF NOT EXISTS bot_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
@@ -71,25 +73,9 @@ CREATE TABLE IF NOT EXISTS bot_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_contact ON bot_sessions(client_id, contact_phone, status);
 
-CREATE TABLE IF NOT EXISTS messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  session_id INTEGER REFERENCES bot_sessions(id) ON DELETE SET NULL,
-  contact_phone TEXT NOT NULL,
-  customer_name TEXT,
-  direction TEXT NOT NULL,                      -- inbound | outbound
-  sent_by TEXT,                                 -- bot | team | customer
-  content_type TEXT,
-  message_text TEXT,
-  template_name TEXT,
-  delivery_status TEXT DEFAULT 'sent',          -- sent | delivered | failed | received
-  easybizy_message_id TEXT,
-  error TEXT,
-  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-);
-CREATE INDEX IF NOT EXISTS idx_messages_contact ON messages(client_id, contact_phone);
-CREATE INDEX IF NOT EXISTS idx_messages_ebid ON messages(easybizy_message_id);
 
+-- Event log for the Activity screen: type, outcome, short status details.
+-- Never stores the webhook payload or any message text. Kept 30 days.
 CREATE TABLE IF NOT EXISTS webhook_events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
