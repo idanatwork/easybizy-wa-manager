@@ -22,22 +22,46 @@
   Theme.init();
 
   /* ---------------- shell ---------------- */
-  function shell(active, inner) {
-    root.innerHTML = `
-      <div class="layout">
-        <aside class="sidebar">
-          <div class="brand"><span class="logo">W</span> WA Manager<button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר" style="margin-inline-start:auto">◐</button></div>
-          <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
-          <div class="spacer"></div>
+  const CLIENT_SECTIONS = [['setup', 'הגדרה', '▤'], ['bots', 'בוטים', '✦'], ['automations', 'אוטומציות', '⚡'], ['convos', 'שיחות', '✉'], ['activity', 'פעילות', '≡']];
+
+  /* active: 'clients' for the global list. clientNav: { client, section } renders
+     the sidebar as that client's menu instead. */
+  function shell(active, inner, clientNav) {
+    const who = `
           <div class="who">
             ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>`}
             <div style="margin-top:6px"><a href="#" id="logout">התנתקות</a></div>
+          </div>`;
+    const nav = clientNav ? `
+          <a class="back-link" href="#/clients" style="padding:4px 12px">→ כל הלקוחות</a>
+          <div class="client-nav-head">
+            <div class="cn-name">${esc(clientNav.client.name)}</div>
+            ${statusBadge(clientNav.client.connection_status)}
           </div>
+          ${CLIENT_SECTIONS.map(([k, l, ico]) => `<a class="nav-item ${clientNav.section === k ? 'active' : ''}" href="#/client/${clientNav.client.id}/${k}"><span class="ico">${ico}</span> ${l}</a>`).join('')}`
+        : `
+          <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>`;
+    root.innerHTML = `
+      <div class="layout">
+        <div class="topbar">
+          <button class="icon-btn" id="nav-burger" title="תפריט">☰</button>
+          <span class="brand" style="padding:0"><span class="logo">W</span> WA Manager</span>
+        </div>
+        <div class="nav-overlay" id="nav-overlay"></div>
+        <aside class="sidebar">
+          <div class="brand"><span class="logo">W</span> WA Manager<button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר" style="margin-inline-start:auto">◐</button></div>
+          ${nav}
+          <div class="spacer"></div>
+          ${who}
         </aside>
         <main class="main">${inner}</main>
       </div>`;
     document.getElementById('logout').onclick = (e) => { e.preventDefault(); Api.logout(); };
     document.getElementById('theme-toggle').onclick = () => Theme.toggle();
+    const closeNav = () => document.body.classList.remove('nav-open');
+    document.getElementById('nav-burger').onclick = () => document.body.classList.toggle('nav-open');
+    document.getElementById('nav-overlay').onclick = closeNav;
+    root.querySelectorAll('.sidebar .nav-item, .sidebar .back-link').forEach(a => a.addEventListener('click', closeNav));
   }
 
   /* ---------------- login ---------------- */
@@ -178,18 +202,13 @@
     const { client } = await Api.getClient(id);
     state.currentClient = client;
     if (!client) return viewClients();
-    const tabs = [['setup', 'הגדרה'], ['bots', 'בוטים'], ['automations', 'אוטומציות'], ['convos', 'שיחות'], ['activity', 'פעילות']];
     shell('clients', `
-      <a class="back-link" href="#/clients">→ כל הלקוחות</a>
-      <div class="page-head" style="margin-top:10px">
+      <div class="page-head" style="margin-top:2px">
         <h1>${esc(client.name)}</h1>
-        ${statusBadge(client.connection_status)}
         ${client.whatsapp_number ? `<span class="badge blue num">${esc(client.whatsapp_number)}</span>` : ''}
         ${client.quality_rating ? qualityBadge(client.quality_rating) : ''}
       </div>
-      <div class="tabs">${tabs.map(([k, l]) => `<div class="tab ${tab === k ? 'active' : ''}" data-tab="${k}">${l}</div>`).join('')}</div>
-      <div id="tab-body"></div>`);
-    document.querySelectorAll('.tab').forEach(t => t.onclick = () => location.hash = `#/client/${id}/${t.dataset.tab}`);
+      <div id="tab-body"></div>`, { client, section: tab });
     const body = document.getElementById('tab-body');
     if (tab === 'setup') renderSetup(body, client);
     if (tab === 'bots') renderBots(body, client);
@@ -274,7 +293,7 @@
           <button class="btn" id="au-save">${automationId ? 'שמירה' : 'יצירת אוטומציה'}</button>
           <a class="btn secondary" href="#/client/${client.id}/automations">ביטול</a>
         </div>
-      </div>`);
+      </div>`, { client, section: 'automations' });
 
     const root = document.getElementById('app');
     const actionSel = root.querySelector('#au-action');
@@ -598,7 +617,7 @@
       : { name: '', trigger_type: 'keywords', keywords: '', event: 'leads.create', steps: [], window_closed_template: '', is_live: false };
     if (typeof bot.steps === 'string') bot.steps = JSON.parse(bot.steps);
 
-    shell('bots', `
+    shell('clients', `
       <a class="back-link" href="#/client/${clientId}/bots">→ הבוטים של ${esc(client.name)}</a>
       <div class="page-head" style="margin-top:10px">
         <h1 id="bname-title">${esc(bot.name || 'בוט חדש')}</h1>
@@ -635,7 +654,7 @@
           </div>
         </div>
         <div class="phone"><div class="phone-title">תצוגה מקדימה</div><div id="preview"></div></div>
-      </div>`);
+      </div>`, { client, section: 'bots' });
 
     const $ = (s) => document.querySelector(s);
     $('#trig').value = bot.trigger_type;
