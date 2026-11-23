@@ -4,6 +4,53 @@
   const root = document.getElementById('app');
   let state = { clients: [], currentClient: null, convoTimer: null };
 
+  /* ---- variable chips: tappable tokens, no manual braces ---- */
+  const VAR_LABELS = { customerName: 'שם הלקוח', 'lead.name': 'שם הליד', 'appointment.startTime': 'מועד התור' };
+  function varPills(escaped) {
+    return escaped.replace(/\{([A-Za-z0-9_.]+)\}/g, (m, k) => `<span class="var-pill">${esc(VAR_LABELS[k] || (k.startsWith('answers.') ? 'תשובה: ' + k.slice(8) : k))}</span>`);
+  }
+  function varChipsHTML(vars) {
+    if (!vars.length) return '';
+    return `<div class="var-chips">${vars.map(([label, token]) => `<button type="button" class="var-chip" data-token="${esc(token)}">${esc(label)}</button>`).join('')}</div>`;
+  }
+  function insertAtCursor(field, token) {
+    if (!field) return;
+    const s = field.selectionStart ?? field.value.length, e = field.selectionEnd ?? field.value.length;
+    field.value = field.value.slice(0, s) + token + field.value.slice(e);
+    try { field.selectionStart = field.selectionEnd = s + token.length; } catch {}
+    field.focus();
+  }
+  function wireVarChips(scopeEl) {
+    scopeEl.querySelectorAll('.var-chips').forEach(box => {
+      const field = box.parentElement.querySelector('textarea.input, input.input');
+      let lastTouch = 0;
+      box.querySelectorAll('.var-chip').forEach(chip => {
+        const insert = () => insertAtCursor(field, chip.dataset.token);
+        chip.addEventListener('touchstart', e => { e.preventDefault(); lastTouch = Date.now(); insert(); }, { passive: false });
+        chip.addEventListener('mousedown', e => e.preventDefault());
+        chip.addEventListener('click', () => { if (Date.now() - lastTouch > 600) insert(); });
+      });
+    });
+  }
+  function collectQuestionNames(steps, out = []) {
+    (steps || []).forEach(s => {
+      if (s.type === 'question' && s.saveAs && !out.includes(s.saveAs)) out.push(s.saveAs);
+      Object.values(s.branches || {}).forEach(b => collectQuestionNames(b, out));
+    });
+    return out;
+  }
+  function eventVars(triggerEvent) {
+    const vars = [['שם הלקוח', '{customerName}']];
+    if ((triggerEvent || '').startsWith('leads')) vars.push(['שם הליד', '{lead.name}']);
+    if ((triggerEvent || '').startsWith('appointments')) vars.push(['מועד התור', '{appointment.startTime}']);
+    return vars;
+  }
+  function botVars(bot) {
+    const vars = eventVars(bot.trigger_type === 'event' ? bot.event : '');
+    collectQuestionNames(bot.steps).forEach(n => vars.push([`תשובה: ${n}`, `{answers.${n}}`]));
+    return vars;
+  }
+
   /* theme: saved choice wins, then ?theme= override, then system preference */
   const Theme = {
     init() {
@@ -304,6 +351,7 @@
     handoffSel.innerHTML = `<option value="">ללא — האוטומציה מסתיימת אחרי הפעולה</option>` +
       bots.map(b => `<option value="${b.id}" ${auto.handoff_bot_id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
 
+    const aVars = eventVars(auto.trigger_event);
     async function renderActionFields() {
       const a = AUTOMATION_ACTIONS[actionSel.value];
       guideEl.textContent = a.guidance;
@@ -326,9 +374,10 @@
             <span class="hint" id="tpl-example"></span>
             <span class="hint">השם חייב להתאים לתבנית מאושרת במסוף EasyBizy. ניהול הרשימה: הגדרה ← התבניות שלי.</span></label>`;
         }
-        if (f.textarea) return `<label class="field"><span>${esc(f.label)}</span><textarea class="input" data-k="${f.k}" rows="3" placeholder="${esc(f.placeholder || '')}">${val}</textarea></label>`;
+        if (f.textarea) return `<label class="field"><span>${esc(f.label)}</span><textarea class="input" data-k="${f.k}" rows="3" placeholder="${esc(f.placeholder || '')}">${val}</textarea><span class="hint">הקשה על משתנה מוסיפה אותו במיקום הסמן:</span>${varChipsHTML(aVars)}</label>`;
         return `<label class="field"><span>${esc(f.label)}</span><input class="input" data-k="${f.k}" ${f.ltr ? 'dir="ltr"' : ''} value="${val}" placeholder="${esc(f.placeholder || '')}"></label>`;
       }).join('');
+      wireVarChips(fieldsEl);
       const tplSel = fieldsEl.querySelector('#au-tpl-sel');
       if (tplSel) {
         const manual = fieldsEl.querySelector('#au-tpl-manual');
@@ -658,16 +707,41 @@
       }
     }
 
+    const previewSel = {};   // preview-only: step path -> tapped button value
+    function bubbleFor(s, path) {
+      const wait = (s.type === 'buttons' || s.type === 'question') ? '<div class="pv-wait">⏳ הבוט ממתין לתשובת הלקוח</div>' : '';
+      if (s.type === 'buttons') {
+        const sel = previewSel[path];
+        const btns = (s.options || []).map(o => `<span class="bubble-btn pv-btn ${sel === o.value ? 'sel' : ''}" data-path="${path}" data-val="${esc(o.value)}">${esc(o.label)}</span>`).join('');
+        let extra = '';
+        if (sel) {
+          const label = (s.options || []).find(o => o.value === sel)?.label || sel;
+          const br = (s.branches || {})[sel] || [];
+          extra = `<div class="bubble in">${esc(label)}<div class="meta">לקוח</div></div>`
+            + (br.length ? br.slice(0, 3).map((b, j) => bubbleFor(b, `${path}.${j}`)).join('') : '<div class="pv-wait">אין צעדים בענף הזה עדיין</div>');
+        }
+        return `<div class="bubble out">${varPills(esc(s.text || ''))}${btns}<div class="meta">בוט</div></div>` + wait + extra;
+      }
+      if (s.type === 'link') return `<div class="bubble out">${varPills(esc(s.text || ''))}<span class="bubble-btn">⤴ ${esc(s.buttonLabel || s.url)}</span><div class="meta">בוט</div></div>`;
+      if (s.type === 'template') return `<div class="bubble out"><div class="b-header">▤ ${esc(s.templateName)}</div>תבנית מאושרת<div class="meta">בוט</div></div>`;
+      if (s.type === 'handoff') return `<div class="bubble out" style="background:#fff3cd">■ הבוט מושהה — השיחה עוברת לצוות</div>`;
+      if (s.type === 'easybizy_action') return '';
+      if (s.type === 'condition') return '';
+      return `<div class="bubble out">${varPills(esc(s.text || s.caption || ''))}<div class="meta">בוט</div></div>` + wait;
+    }
     function renderPreview() {
-      $('#preview').innerHTML = bot.steps.slice(0, 4).map(s => {
-        if (s.type === 'buttons') return `<div class="bubble out">${esc(s.text)}${(s.options || []).map(o => `<span class="bubble-btn">${esc(o.label)}</span>`).join('')}<div class="meta">בוט</div></div>`;
-        if (s.type === 'link') return `<div class="bubble out">${esc(s.text)}<span class="bubble-btn">⤴ ${esc(s.buttonLabel || s.url)}</span><div class="meta">בוט</div></div>`;
-        if (s.type === 'template') return `<div class="bubble out"><div class="b-header">▤ ${esc(s.templateName)}</div>תבנית מאושרת<div class="meta">בוט</div></div>`;
-        if (s.type === 'handoff') return `<div class="bubble out" style="background:#fff3cd">■ הבוט מושהה — השיחה עוברת לצוות</div>`;
-        if (s.type === 'easybizy_action') return '';
-        if (s.type === 'condition') return '';
-        return `<div class="bubble out">${esc(s.text || s.caption || '')}<div class="meta">בוט</div></div>`;
+      $('#preview').innerHTML = bot.steps.slice(0, 6).map((s, i) => {
+        const html = bubbleFor(s, String(i));
+        return html ? `<div class="pv-group"><div class="pv-tag" data-goto="${i}" title="מעבר לצעד">הודעה ${i + 1}</div>${html}</div>` : '';
       }).join('') || '<div class="empty" style="color:var(--muted)">הוסיפו צעד לתצוגה</div>';
+      $('#preview').querySelectorAll('.pv-btn').forEach(b => b.onclick = () => {
+        previewSel[b.dataset.path] = previewSel[b.dataset.path] === b.dataset.val ? null : b.dataset.val;
+        renderPreview();
+      });
+      $('#preview').querySelectorAll('.pv-tag').forEach(t => t.onclick = () => {
+        const card = [...document.querySelectorAll('#steps .step')].find(el => el.dataset.path.split(':').length === 1 && +el.dataset.path.split(':')[0] === +t.dataset.goto);
+        if (card) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 900); }
+      });
     }
 
     $('#add-step').onclick = () => stepModal(bot, null, (out) => { bot.steps.push(out); renderSteps(); }, templates);
@@ -708,32 +782,80 @@
     const typeSel = m.querySelector('#st-type');
     typeSel.value = s.type || 'text';
     const fields = m.querySelector('#st-fields');
+    const vars = botVars(bot);
+    const chipsHint = `<span class="hint">הקשה על משתנה מוסיפה אותו במיקום הסמן:</span>`;
 
     const renderFields = () => {
       const t = typeSel.value;
       fields.innerHTML = {
-        text: `<label class="field"><span>טקסט ההודעה</span><textarea class="input" id="f-text" rows="3">${esc(s.text || '')}</textarea><span class="hint">משתנים: {customerName}, {appointment.startTime}, {lead.name}, {answers.x}</span></label>`,
-        buttons: `<label class="field"><span>טקסט ההודעה</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea></label>
-          <label class="field"><span>כפתורים (שורה לכל אחד: תווית=ערך)</span><textarea class="input" id="f-options" rows="3" dir="rtl">${(s.options || []).map(o => `${o.label}=${o.value}`).join('\n')}</textarea><span class="hint">עד 3 כפתורים; 4–10 הופכים לרשימה. לכל כפתור ייפתח ענף צעדים משלו.</span></label>
-          <label class="field"><span>כותרת לרשימה (חובה מעל 3)</span><input class="input" id="f-buttonsTitle" value="${esc(s.buttonsTitle || '')}"></label>`,
-        link: `<label class="field"><span>טקסט</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea></label>
+        text: `<label class="field"><span>טקסט ההודעה</span><textarea class="input" id="f-text" rows="3">${esc(s.text || '')}</textarea>${chipsHint}${varChipsHTML(vars)}</label>`,
+        buttons: `<label class="field"><span>טקסט ההודעה</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea>${chipsHint}${varChipsHTML(vars)}</label>
+          <div class="field"><span>אפשרויות ללקוח</span><div id="opts-list"></div>
+            <button type="button" class="btn secondary small" id="opt-add">+ הוסף כפתור</button>
+            <span class="hint" id="opts-mode"></span></div>
+          <label class="field" id="btitle-wrap" style="display:none"><span>כותרת לרשימה</span><input class="input" id="f-buttonsTitle" value="${esc(s.buttonsTitle || '')}"></label>
+          <span class="hint">אחרי השמירה, לכל כפתור ייפתח אזור ״אם נלחץ…״ עם צעדים משלו.</span>`,
+        link: `<label class="field"><span>טקסט</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea>${chipsHint}${varChipsHTML(vars)}</label>
           <label class="field"><span>כתובת</span><input class="input" dir="ltr" id="f-url" value="${esc(s.url || '')}"></label>
           <label class="field"><span>תווית כפתור</span><input class="input" id="f-buttonLabel" value="${esc(s.buttonLabel || '')}"></label>`,
         file: `<label class="field"><span>mediaId (מהעלאה ב-EasyBizy)</span><input class="input" dir="ltr" id="f-mediaId" value="${esc(s.mediaId || '')}"></label>
-          <label class="field"><span>כיתוב</span><input class="input" id="f-caption" value="${esc(s.caption || '')}"></label>`,
+          <label class="field"><span>כיתוב</span><input class="input" id="f-caption" value="${esc(s.caption || '')}">${chipsHint}${varChipsHTML(vars)}</label>`,
         template: `<label class="field"><span>שם התבנית</span><input class="input" dir="ltr" id="f-templateName" list="st-tpl-names" value="${esc(s.templateName || '')}"><datalist id="st-tpl-names">${templates.map(t => `<option value="${esc(t.name)}"></option>`).join('')}</datalist></label>
-          <label class="field"><span>פרמטרים (מופרדים בפסיק, אפשר משתנים)</span><input class="input" id="f-params" value="${esc((s.params || []).join(', '))}"></label>`,
-        question: `<label class="field"><span>השאלה</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea></label>
+          <label class="field"><span>פרמטרים (מופרדים בפסיק)</span><input class="input" id="f-params" value="${esc((s.params || []).join(', '))}">${chipsHint}${varChipsHTML(vars)}</label>`,
+        question: `<label class="field"><span>השאלה</span><textarea class="input" id="f-text" rows="2">${esc(s.text || '')}</textarea>${chipsHint}${varChipsHTML(vars)}</label>
           <label class="field"><span>נשמר כמשתנה</span><input class="input" dir="ltr" id="f-saveAs" value="${esc(s.saveAs || '')}"></label>`,
         condition: `<label class="field"><span>שדה</span><input class="input" dir="ltr" id="f-field" value="${esc(s.field || '')}"></label>
           <label class="field"><span>תנאי</span><select class="input" id="f-op"><option value="contains">מכיל</option><option value="eq">שווה ל-</option><option value="exists">קיים</option></select></label>
           <label class="field"><span>ערך</span><input class="input" id="f-value" value="${esc(s.value || '')}"></label>`,
         easybizy_action: `<label class="field"><span>פעולה</span><select class="input" id="f-action"><option value="create_lead">יצירת ליד</option><option value="create_customer">יצירת לקוח</option><option value="add_activity">הוספת הערה ללקוח</option></select></label>
-          <label class="field"><span>תוכן / הערה</span><textarea class="input" id="f-note" rows="2">${esc(s.note || '')}</textarea></label>`,
+          <label class="field"><span>תוכן / הערה</span><textarea class="input" id="f-note" rows="2">${esc(s.note || '')}</textarea>${chipsHint}${varChipsHTML(vars)}</label>`,
         handoff: `<p class="page-sub">הבוט עוצר, והשיחה מסומנת כ״ממתין לצוות״ עד שמחזירים את הבוט.</p>`,
       }[t] || '';
       if (t === 'easybizy_action' && s.action) fields.querySelector('#f-action').value = s.action;
       if (t === 'condition' && s.op) fields.querySelector('#f-op').value = s.op;
+      wireVarChips(fields);
+      if (t === 'buttons') wireOptsEditor();
+
+      function wireOptsEditor() {
+        const list = fields.querySelector('#opts-list');
+        const rows = () => [...list.querySelectorAll('.opt-row')];
+        const refresh = () => {
+          const n = rows().filter(r => r.querySelector('.opt-label').value.trim()).length || rows().length;
+          fields.querySelector('#opt-add').style.display = rows().length >= 10 ? 'none' : '';
+          fields.querySelector('#opts-mode').textContent = !n ? '' : n <= 3 ? `${n} אפשרויות — יישלחו ככפתורים` : `${n} אפשרויות — יישלחו כרשימה`;
+          fields.querySelector('#btitle-wrap').style.display = n > 3 ? 'block' : 'none';
+        };
+        const addRow = (o = { label: '', value: '' }) => {
+          const adv = o.value && o.value !== o.label;
+          const row = document.createElement('div');
+          row.className = 'opt-row';
+          row.dataset.orig = o.value || '';
+          row.innerHTML = `
+            <input class="input opt-label" placeholder="תווית, למשל: כן" value="${esc(o.label || '')}">
+            <div class="opt-tools">
+              <button type="button" class="icon-btn opt-up" title="הזזה למעלה">↑</button>
+              <button type="button" class="icon-btn opt-down" title="הזזה למטה">↓</button>
+              <button type="button" class="icon-btn opt-adv ${adv ? 'on' : ''}" title="ערך פנימי (מתקדם)">Aa</button>
+              <button type="button" class="icon-btn opt-del" title="מחיקה">✕</button>
+            </div>
+            <input class="input opt-value" dir="ltr" placeholder="ערך פנימי — ברירת מחדל: כמו התווית" value="${esc(adv ? o.value : '')}" style="display:${adv ? 'block' : 'none'}">`;
+          row.querySelector('.opt-del').onclick = () => { row.remove(); refresh(); };
+          row.querySelector('.opt-adv').onclick = (e) => {
+            const inp = row.querySelector('.opt-value');
+            const show = inp.style.display === 'none';
+            inp.style.display = show ? 'block' : 'none';
+            e.currentTarget.classList.toggle('on', show);
+          };
+          row.querySelector('.opt-up').onclick = () => { if (row.previousElementSibling) { list.insertBefore(row, row.previousElementSibling); refresh(); } };
+          row.querySelector('.opt-down').onclick = () => { if (row.nextElementSibling) { list.insertBefore(row.nextElementSibling, row); refresh(); } };
+          row.querySelector('.opt-label').addEventListener('input', refresh);
+          list.appendChild(row);
+        };
+        (s.options || []).forEach(addRow);
+        if (!(s.options || []).length) addRow();
+        fields.querySelector('#opt-add').onclick = () => { addRow(); refresh(); };
+        refresh();
+      }
     };
     typeSel.onchange = renderFields;
     renderFields();
@@ -746,15 +868,17 @@
       if (t === 'text') out.text = v('#f-text');
       if (t === 'buttons') {
         out.text = v('#f-text');
-        out.options = v('#f-options').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
-          const [label, value] = l.split('=').map(x => x.trim());
-          return { label, value: value || label };
-        }).slice(0, 10);
+        out.options = [...fields.querySelectorAll('.opt-row')].map(r => {
+          const label = r.querySelector('.opt-label').value.trim();
+          const advVal = r.querySelector('.opt-value').value.trim();
+          return { label, value: advVal || r.dataset.orig || label };
+        }).filter(o => o.label).slice(0, 10);
         if (v('#f-buttonsTitle')) out.buttonsTitle = v('#f-buttonsTitle');
         if (out.options.length > 3 && !out.buttonsTitle) return toast('מעל 3 אפשרויות חובה כותרת לרשימה');
         if (!out.options.length) return toast('חסרים כפתורים');
         out.branches = s.branches || {};
         out.options.forEach(o => out.branches[o.value] = out.branches[o.value] || []);
+        Object.keys(out.branches).forEach(k => { if (!out.options.some(o => o.value === k)) delete out.branches[k]; });
       }
       if (t === 'link') { out.text = v('#f-text'); out.url = v('#f-url'); out.buttonLabel = v('#f-buttonLabel'); }
       if (t === 'file') { out.mediaId = v('#f-mediaId'); out.caption = v('#f-caption'); }

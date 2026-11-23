@@ -356,3 +356,28 @@ pre.payload {
 /* guidance callout (automations) */
 .guide { background: #eef7f1; border: 1px solid #cde8d8; color: #1d6a45; border-radius: 10px; padding: 11px 14px; font-size: 13.5px; line-height: 1.55; margin-top: 6px; }
 [data-theme="dark"] .guide { background: #0e2a1e; border-color: #1c4a33; color: #7fd6a8; }
+
+/* variable chips + pills */
+.var-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.var-chip { border: 1px solid var(--line); background: var(--card); color: var(--green-dark); border-radius: 999px; padding: 6px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; min-height: 32px; font-family: inherit; }
+.var-chip:active { background: var(--green-soft); }
+.var-pill { background: var(--green-soft); color: var(--green-dark); border-radius: 6px; padding: 0 6px; font-size: .85em; font-weight: 700; white-space: nowrap; }
+@media (max-width: 640px) { .var-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; } .var-chip { flex: 0 0 auto; } }
+
+/* buttons options editor */
+.opt-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.opt-row .opt-label { flex: 1; min-width: 0; }
+.opt-row .opt-value { flex: 1 0 100%; }
+.opt-tools { display: flex; align-items: center; }
+.opt-adv { font-weight: 700; font-size: 12px; border: 1px solid var(--line); border-radius: 7px; }
+.opt-adv.on { background: var(--green-soft); color: var(--green-dark); border-color: var(--green-dark); }
+
+/* builder preview groups */
+.pv-group { margin-bottom: 16px; }
+.pv-tag { font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 4px; cursor: pointer; width: max-content; }
+.pv-tag:hover { color: var(--green-dark); text-decoration: underline; }
+.pv-wait { font-size: 11.5px; color: var(--muted); margin: 4px 0 6px; }
+.pv-btn { cursor: pointer; user-select: none; }
+.pv-btn.sel { background: var(--green-dark); color: #fff; border-color: var(--green-dark); }
+.bubble.in { background: var(--card); align-self: flex-start; border: 1px solid var(--line); border-start-start-radius: 4px; border-start-end-radius: 14px; }
+.step.flash { outline: 2px solid var(--green-dark); outline-offset: 2px; border-radius: 10px; transition: outline-color .4s; }
