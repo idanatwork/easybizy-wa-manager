@@ -97,7 +97,7 @@
         </div>
         <div class="nav-overlay" id="nav-overlay"></div>
         <aside class="sidebar">
-          <div class="brand"><img class="logo" src="assets/logo-icon.png" alt="Tech Mate"><span class="brand-name">WhatsApp Manager<span class="brand-sub">for EasyBizy</span></span></div>
+          <div class="brand column"><img class="logo-lg" src="assets/logo-icon.png" alt="Tech Mate"><span class="brand-name">WhatsApp Manager<span class="brand-sub">for EasyBizy</span></span></div>
           ${nav}
           <div class="spacer"></div>
           ${who}
