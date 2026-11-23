@@ -117,5 +117,16 @@ const DEMO = (() => {
     ],
   };
 
-  return { clients, bots, conversations, messages, events, templates };
+  const automations = [
+    { id: 301, client_id: 1, name: "ברכה לליד חדש", trigger_event: "leads.create", action: "send_template",
+      config: { template_name: "lead_welcome" }, handoff_bot_id: 1, is_active: true, runs_week: 23, created_at: ago(60 * 24 * 10) },
+    { id: 302, client_id: 1, name: "אישור תור אוטומטי", trigger_event: "appointments.create", action: "send_template",
+      config: { template_name: "appointment_confirm" }, is_active: true, runs_week: 41, created_at: ago(60 * 24 * 9) },
+    { id: 303, client_id: 1, name: "קישור תשלום אחרי חשבונית", trigger_event: "invoices.create", action: "payment_link",
+      config: { amount: "150", description: "תשלום עבור טיפול" }, is_active: false, runs_week: 0, created_at: ago(60 * 24 * 3) },
+    { id: 304, client_id: 2, name: "ליד חדש למרפאה", trigger_event: "leads.create", action: "send_template",
+      config: { template_name: "dental_reminder" }, is_active: true, runs_week: 12, created_at: ago(60 * 24 * 6) },
+  ];
+
+  return { clients, bots, conversations, messages, events, templates, automations };
 })();

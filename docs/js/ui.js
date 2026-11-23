@@ -113,5 +113,74 @@ const UI = (() => {
     handoff: 'העברה לצוות',
   };
 
-  return { esc, fmtTime, fmtAgo, fmtDateTime, statusBadge, qualityBadge, resultBadge, toast, modal, confirmModal, EVENT_LABELS, ALL_EVENTS, TRIGGER_LABELS, STEP_TYPES };
+  /* Automation actions: id -> label, guidance shown in the add screen, and config fields. */
+  const AUTOMATION_ACTIONS = {
+    send_template: {
+      label: 'שליחת הודעת תבנית בוואטסאפ',
+      guidance: 'לפני שמפעילים את האוטומציה יש להיכנס למערכת EasyBizy וליצור שם את התבנית (מסך תבניות וואטסאפ), ולהמתין לאישורה. בלי תבנית מאושרת ההודעה לא תישלח. אפשר להשתמש ב-{name} ובשדות מהאירוע.',
+      fields: [
+        { k: 'template_name', label: 'שם התבנית', placeholder: 'lead_welcome', ltr: true, required: true },
+      ],
+    },
+    send_text: {
+      label: 'שליחת הודעת טקסט בוואטסאפ',
+      guidance: 'הודעת טקסט חופשי נשלחת רק כשחלון 24 השעות מול הלקוח פתוח (אחרי שהלקוח שלח הודעה). לאירועים שהלקוח לא יזם, כמו ליד חדש, בחרו הודעת תבנית.',
+      fields: [
+        { k: 'text', label: 'תוכן ההודעה', textarea: true, placeholder: 'היי {name}, תודה שפנית אלינו!', required: true },
+      ],
+    },
+    create_lead: {
+      label: 'יצירת ליד ב-EasyBizy',
+      guidance: 'הליד ייווצר עם השם והטלפון מהאירוע, יחד עם ההערה שתגדירו. אפשר להשתמש ב-{name} ובשדות מהאירוע.',
+      fields: [
+        { k: 'note', label: 'הערה לליד', placeholder: 'נוצר אוטומטית מאירוע {event}', textarea: true },
+      ],
+    },
+    add_lead_activity: {
+      label: 'רישום פעילות בכרטיס ליד',
+      guidance: 'רישום פעילות יתווסף לליד שמזוהה מהאירוע (למשל אחרי עדכון ליד).',
+      fields: [
+        { k: 'note', label: 'תוכן הפעילות', placeholder: 'עודכן סטטוס ל-{status}', textarea: true, required: true },
+      ],
+    },
+    create_customer: {
+      label: 'יצירת לקוח ב-EasyBizy',
+      guidance: 'הלקוח ייווצר עם השם והטלפון מהאירוע, יחד עם ההערה שתגדירו.',
+      fields: [
+        { k: 'note', label: 'הערה ללקוח', placeholder: 'נוצר אוטומטית מאירוע {event}', textarea: true },
+      ],
+    },
+    add_customer_activity: {
+      label: 'רישום פעילות בכרטיס לקוח',
+      guidance: 'רישום פעילות יתווסף ללקוח שמזוהה מהאירוע.',
+      fields: [
+        { k: 'note', label: 'תוכן הפעילות', placeholder: 'נרשם אוטומטית', textarea: true, required: true },
+      ],
+    },
+    create_invoice: {
+      label: 'הפקת חשבונית',
+      guidance: 'חשבונית מס קבלה תופק ללקוח שמזוהה מהאירוע, בסכום שתגדירו. ודאו שהגדרות המס ב-EasyBizy תקינות לפני ההפעלה.',
+      fields: [
+        { k: 'amount', label: 'סכום (₪)', placeholder: '150', ltr: true, required: true },
+        { k: 'description', label: 'תיאור', placeholder: 'תשלום עבור שירות' },
+      ],
+    },
+    payment_link: {
+      label: 'יצירת קישור תשלום',
+      guidance: 'ייווצר קישור תשלום (Payment Session) בסכום שתגדירו. הקישור נשמר בפרטי האירוע ואפשר לשלוח אותו בהמשך בתבנית או בבוט.',
+      fields: [
+        { k: 'amount', label: 'סכום (₪)', placeholder: '150', ltr: true, required: true },
+        { k: 'description', label: 'תיאור', placeholder: 'תשלום עבור שירות' },
+      ],
+    },
+    gift_card: {
+      label: 'הנפקת שובר מתנה',
+      guidance: 'ייווצר קישור לתשלום שובר מתנה בסכום שתגדירו. השובר עצמו מונפק ב-EasyBizy אחרי התשלום.',
+      fields: [
+        { k: 'amount', label: 'סכום (₪)', placeholder: '200', ltr: true, required: true },
+      ],
+    },
+  };
+
+  return { esc, fmtTime, fmtAgo, fmtDateTime, statusBadge, qualityBadge, resultBadge, toast, modal, confirmModal, EVENT_LABELS, ALL_EVENTS, TRIGGER_LABELS, STEP_TYPES, AUTOMATION_ACTIONS };
 })();

@@ -1,6 +1,6 @@
 /* WA Manager — router and views. */
 (() => {
-  const { esc, fmtTime, fmtAgo, fmtDateTime, statusBadge, qualityBadge, resultBadge, toast, modal, confirmModal, EVENT_LABELS, ALL_EVENTS, TRIGGER_LABELS, STEP_TYPES } = UI;
+  const { esc, fmtTime, fmtAgo, fmtDateTime, statusBadge, qualityBadge, resultBadge, toast, modal, confirmModal, EVENT_LABELS, ALL_EVENTS, TRIGGER_LABELS, STEP_TYPES, AUTOMATION_ACTIONS } = UI;
   const root = document.getElementById('app');
   let state = { clients: [], currentClient: null, convoTimer: null };
 
@@ -148,7 +148,7 @@
     const { client } = await Api.getClient(id);
     state.currentClient = client;
     if (!client) return viewClients();
-    const tabs = [['setup', 'הגדרה'], ['bots', 'בוטים'], ['convos', 'שיחות'], ['activity', 'פעילות']];
+    const tabs = [['setup', 'הגדרה'], ['bots', 'בוטים'], ['automations', 'אוטומציות'], ['convos', 'שיחות'], ['activity', 'פעילות']];
     shell('clients', `
       <a class="back-link" href="#/clients">→ כל הלקוחות</a>
       <div class="page-head" style="margin-top:10px">
@@ -163,8 +163,143 @@
     const body = document.getElementById('tab-body');
     if (tab === 'setup') renderSetup(body, client);
     if (tab === 'bots') renderBots(body, client);
+    if (tab === 'automations') renderAutomations(body, client);
     if (tab === 'convos') renderConvos(body, client);
     if (tab === 'activity') renderActivity(body, client.id);
+  }
+
+  /* ---- automations tab ---- */
+  async function renderAutomations(el, client) {
+    const { automations } = await Api.listAutomations(client.id);
+    const { bots } = await Api.listBots(client.id);
+    const botName = (bid) => bots.find(b => b.id === +bid)?.name || '';
+    el.innerHTML = `
+      <div class="toolbar">
+        <span class="page-sub" style="margin:0">${automations.length} אוטומציות · אירוע ← פעולה אחת, בלי שיחה</span>
+        <div class="grow"></div>
+        <button class="btn" id="new-auto">＋ אוטומציה חדשה</button>
+      </div>
+      <div class="guide" style="margin-bottom:14px">אוטומציה היא לא בוט: כשאירוע מגיע מ-EasyBizy מבוצעת פעולה אחת, וזהו. לתהליך עם שאלות ותשובות — מסך הבוטים.</div>
+      <div class="bots-grid">
+        ${automations.map(a => `
+          <div class="bot-card" data-id="${a.id}">
+            <div class="top"><h4>${esc(a.name)}</h4>${a.is_active ? '<span class="badge green"><span class="dot"></span>פעילה</span>' : '<span class="badge">כבויה</span>'}</div>
+            <div class="trig">כש־${esc(EVENT_LABELS[a.trigger_event] || a.trigger_event)} ← ${esc(AUTOMATION_ACTIONS[a.action]?.label || a.action)}</div>
+            ${a.handoff_bot_id ? `<div class="trig" style="color:var(--muted)">הלקוח משיב ← בוט: ${esc(botName(a.handoff_bot_id))}</div>` : ''}
+            <div class="stats"><span class="num">${a.runs_week ?? 0} ריצות השבוע</span><span class="mono" style="font-size:11.5px">${esc(a.trigger_event)}</span></div>
+            <div class="actions">
+              <button class="btn secondary small" data-act="edit">עריכה</button>
+              <button class="btn ${a.is_active ? 'secondary' : ''} small" data-act="toggle">${a.is_active ? 'כיבוי' : 'הפעלה'}</button>
+              <button class="btn danger small" data-act="del">מחיקה</button>
+            </div>
+          </div>`).join('') || '<div class="empty" style="grid-column:1/-1"><div class="big">⚡</div>אין אוטומציות עדיין — יוצרים את הראשונה</div>'}
+      </div>`;
+    el.querySelector('#new-auto').onclick = () => location.hash = `#/client/${client.id}/automation`;
+    el.querySelectorAll('.bot-card').forEach(card => {
+      const id = +card.dataset.id;
+      const auto = automations.find(a => a.id === id);
+      card.onclick = (e) => { if (!e.target.dataset.act) location.hash = `#/client/${client.id}/automation/${id}`; };
+      card.querySelector('[data-act=edit]').onclick = () => location.hash = `#/client/${client.id}/automation/${id}`;
+      card.querySelector('[data-act=toggle]').onclick = async () => { await Api.toggleAutomation(id, !auto.is_active); toast(auto.is_active ? 'האוטומציה כובתה' : 'האוטומציה פעילה'); renderAutomations(el, client); };
+      card.querySelector('[data-act=del]').onclick = () => confirmModal('מחיקת אוטומציה', `האוטומציה "${auto.name}" תימחק.`, 'מחיקה', async () => { await Api.deleteAutomation(id); renderAutomations(el, client); });
+    });
+  }
+
+  /* ---- add / edit automation screen ---- */
+  async function viewAutomation(clientId, automationId) {
+    const { client } = await Api.getClient(clientId);
+    if (!client) return viewClients();
+    let auto = { name: '', trigger_event: 'leads.create', action: 'send_template', config: {}, is_active: false };
+    if (automationId) {
+      const res = await Api.getAutomation(automationId);
+      if (res.automation) auto = { ...res.automation, config: res.automation.config || {} };
+    }
+    shell('clients', `
+      <a class="back-link" href="#/client/${client.id}/automations">→ אוטומציות · ${esc(client.name)}</a>
+      <div class="page-head" style="margin-top:10px"><h1>${automationId ? 'עריכת אוטומציה' : 'אוטומציה חדשה'}</h1></div>
+      <div class="card" style="max-width:640px">
+        <label class="field"><span>שם האוטומציה</span>
+          <input class="input" id="au-name" value="${esc(auto.name)}" placeholder="ברכה לליד חדש">
+        </label>
+
+        <h3 style="margin-top:18px">1 · מתי זה קורה? (אירוע מהמערכת)</h3>
+        <label class="field"><span>אירוע מ-EasyBizy</span>
+          <select class="input" id="au-event">${ALL_EVENTS.map(ev => `<option value="${ev}" ${auto.trigger_event === ev ? 'selected' : ''}>${esc(EVENT_LABELS[ev])} · ${ev}</option>`).join('')}</select>
+        </label>
+
+        <h3 style="margin-top:18px">2 · מה קורה? (פעולה אחת)</h3>
+        <label class="field"><span>פעולה</span>
+          <select class="input" id="au-action">${Object.entries(AUTOMATION_ACTIONS).map(([k, a]) => `<option value="${k}" ${auto.action === k ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select>
+        </label>
+        <div class="guide" id="au-guide"></div>
+        <div id="au-fields"></div>
+
+        <h3 style="margin-top:18px">3 · אם הלקוח משיב (אופציונלי)</h3>
+        <label class="field"><span>חיבור לבוט שינהל את השיחה</span>
+          <select class="input" id="au-handoff"></select>
+          <span class="hint">הבוט הנבחר יפתח שיחה מלאה עם הלקוח ברגע שהוא משיב (למשל: משיב לתבנית ← הבוט שואל שאלות וקובע תור).</span>
+        </label>
+
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn" id="au-save">${automationId ? 'שמירה' : 'יצירת אוטומציה'}</button>
+          <a class="btn secondary" href="#/client/${client.id}/automations">ביטול</a>
+        </div>
+      </div>`);
+
+    const root = document.getElementById('app');
+    const actionSel = root.querySelector('#au-action');
+    const fieldsEl = root.querySelector('#au-fields');
+    const guideEl = root.querySelector('#au-guide');
+    let templates = [];
+    const { bots } = await Api.listBots(client.id);
+    const handoffSel = root.querySelector('#au-handoff');
+    handoffSel.innerHTML = `<option value="">ללא — האוטומציה מסתיימת אחרי הפעולה</option>` +
+      bots.map(b => `<option value="${b.id}" ${auto.handoff_bot_id === b.id ? 'selected' : ''}>${esc(b.name)}</option>`).join('');
+
+    async function renderActionFields() {
+      const a = AUTOMATION_ACTIONS[actionSel.value];
+      guideEl.textContent = a.guidance;
+      if (actionSel.value === 'send_template' && !templates.length) {
+        fieldsEl.innerHTML = '<div class="hint">טוען תבניות…</div>';
+        try { templates = (await Api.getTemplates(client.id)).templates || []; } catch { templates = []; }
+      }
+      fieldsEl.innerHTML = a.fields.map(f => {
+        const val = esc(auto.config[f.k] || '');
+        if (actionSel.value === 'send_template' && f.k === 'template_name') {
+          if (!templates.length) return `<label class="field"><span>${esc(f.label)}</span><input class="input" data-k="${f.k}" dir="ltr" value="${val}" placeholder="${esc(f.placeholder || '')}"><span class="hint">לא נמצאו תבניות — יש ליצור תבנית במערכת EasyBizy קודם</span></label>`;
+          const cur = auto.config.template_name || templates[0].name;
+          return `<label class="field"><span>${esc(f.label)} (מתוך התבניות המאושרות ב-EasyBizy)</span>
+            <select class="input" data-k="${f.k}" dir="ltr">${templates.map(t => `<option value="${esc(t.name)}" ${cur === t.name ? 'selected' : ''}>${esc(t.name)} · ${esc(t.language || 'he')}</option>`).join('')}</select>
+            <span class="hint" id="tpl-example"></span></label>`;
+        }
+        if (f.textarea) return `<label class="field"><span>${esc(f.label)}</span><textarea class="input" data-k="${f.k}" rows="3" placeholder="${esc(f.placeholder || '')}">${val}</textarea></label>`;
+        return `<label class="field"><span>${esc(f.label)}</span><input class="input" data-k="${f.k}" ${f.ltr ? 'dir="ltr"' : ''} value="${val}" placeholder="${esc(f.placeholder || '')}"></label>`;
+      }).join('');
+      const tplSel = fieldsEl.querySelector('select[data-k=template_name]');
+      if (tplSel) {
+        const showEx = () => {
+          const t = templates.find(x => x.name === tplSel.value);
+          fieldsEl.querySelector('#tpl-example').textContent = t?.example ? 'תצוגה: ' + t.example : '';
+        };
+        tplSel.onchange = showEx; showEx();
+      }
+    }
+    actionSel.onchange = () => { collectFields(); renderActionFields(); };
+    const collectFields = () => {
+      fieldsEl.querySelectorAll('[data-k]').forEach(inp => { auto.config[inp.dataset.k] = inp.value; });
+    };
+    await renderActionFields();
+
+    root.querySelector('#au-save').onclick = async () => {
+      collectFields();
+      const name = root.querySelector('#au-name').value.trim();
+      if (!name) return toast('חסר שם לאוטומציה');
+      const a = AUTOMATION_ACTIONS[actionSel.value];
+      for (const f of a.fields) if (f.required && !(auto.config[f.k] || '').trim()) return toast('חסר שדה: ' + f.label);
+      await Api.saveAutomation(client.id, { id: automationId ? +automationId : undefined, name, trigger_event: root.querySelector('#au-event').value, action: actionSel.value, config: auto.config, handoff_bot_id: handoffSel.value ? +handoffSel.value : null, is_active: auto.is_active });
+      toast(automationId ? 'נשמר' : 'האוטומציה נוצרה (כבויה — מפעילים ממסך האוטומציות)');
+      location.hash = `#/client/${client.id}/automations`;
+    };
   }
 
   /* ---- setup tab ---- */
@@ -692,6 +827,7 @@
     if (page === 'client' && a) {
       const parts = h.split('/');
       if (parts[3] === 'builder') return viewBuilder(a, parts[4] || null);
+      if (parts[3] === 'automation') return viewAutomation(a, parts[4] || null);
       return viewClient(a, parts[3] || 'setup');
     }
     viewClients();

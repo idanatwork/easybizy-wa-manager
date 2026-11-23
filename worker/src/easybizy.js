@@ -45,5 +45,8 @@ export const createLead = (client, fields) => call(client, 'POST', '/api/v1/lead
 export const createCustomer = (client, fields) => call(client, 'POST', '/api/v1/customers', fields);
 export const addLeadActivity = (client, leadId, note) =>
   call(client, 'POST', `/api/v1/leads/${leadId}/activity-info`, { note });
+export const createInvoice = (client, fields) => call(client, 'POST', '/api/v1/invoices', fields);
+export const createPaymentSession = (client, fields) => call(client, 'POST', '/api/v1/payment-sessions', fields);
+export const createGiftCard = (client, fields) => call(client, 'POST', '/api/v1/gift-cards', fields);
 export const addCustomerActivity = (client, customerId, note) =>
   call(client, 'POST', `/api/v1/customers/${customerId}/activity-info`, { note });

@@ -196,12 +196,22 @@ export async function handleEvent(env, client, envelope) {
     const incoming = { text: data.text || '', selection: data.selection || null };
     await logMessage(db, client.id, null, phone, name, 'inbound', 'customer', data.contentType || 'text', data.text || (data.selection ? `Tapped: ${data.selection.title}` : ''), null, 'received', data.id);
 
-    // active session continues
-    const session = await db.prepare(`SELECT * FROM bot_sessions WHERE client_id=? AND contact_phone=? AND status IN ('active','waiting') AND paused=0 ORDER BY id DESC LIMIT 1`)
+    // active session continues (also sessions opened by an automation handoff)
+    const session = await db.prepare(`SELECT * FROM bot_sessions WHERE client_id=? AND contact_phone=? AND status IN ('active','waiting','automation_handoff') AND paused=0 ORDER BY id DESC LIMIT 1`)
       .bind(client.id, phone).first();
     if (session) {
       const bot = await db.prepare(`SELECT * FROM bots WHERE id=? AND is_live=1`).bind(session.bot_id).first();
       if (bot) {
+        if (session.status === 'automation_handoff') {
+          // The customer replied to an automation message: the linked bot starts from step 1.
+          await db.prepare(`UPDATE bot_sessions SET status='active', trigger_data=? WHERE id=?`)
+            .bind(JSON.stringify({ ...(JSON.parse(session.trigger_data || '{}')), reply: incoming.text || incoming.selection?.title || '' }), session.id).run();
+          const ctx = { answers: {}, trigger: JSON.parse(session.trigger_data || '{}'), customerName: session.customer_name };
+          const r = await runSteps(env, client, bot, session, botSteps(bot), 0, ctx);
+          if (r.waiting) await persistWaiting(db, session, r.at, {});
+          else await db.prepare(`UPDATE bot_sessions SET status='done' WHERE id=?`).bind(session.id).run();
+          return { result: 'bot_ran', details: `${bot.name} · תגובה לאוטומציה` };
+        }
         await continueSession(env, client, session, bot, incoming);
         return { result: 'bot_ran', details: `${bot.name} · המשך סשן` };
       }
@@ -232,4 +242,86 @@ export async function handleEvent(env, client, envelope) {
     else await db.prepare(`UPDATE bot_sessions SET status='done' WHERE id=?`).bind(s.id).run();
   }
   return { result: 'bot_ran', details: bots.map(b => b.name).join(', ') };
+}
+
+/* Automations: one API action per webhook event, no conversation.
+   Optionally hands the customer to a live bot when they reply
+   (status 'automation_handoff' in bot_sessions, picked up by handleEvent). */
+export async function runAutomations(env, client, envelope) {
+  const db = env.DB;
+  const eventType = `${envelope.resource}.${envelope.action}`;
+  const data = envelope.data || {};
+  const autos = (await db.prepare(`SELECT * FROM automations WHERE client_id=? AND trigger_event=? AND is_active=1`)
+    .bind(client.id, eventType).all()).results;
+  if (!autos.length) return null;
+
+  const { phone, name } = extractContact(data);
+  const ctx = {
+    ...data, event: eventType, trigger: data, answers: {},
+    name: name || data.name || data.firstName || '',
+    phone: phone || data.mobile || data.phone || data.phoneNumber || '',
+    customerName: name || data.name || data.firstName || '',
+  };
+  const cid = data.customerId || data.customer_id || data.id;
+  const results = [];
+
+  for (const a of autos) {
+    const cfg = JSON.parse(a.config || '{}');
+    try {
+      let detail = '';
+      if (a.action === 'send_template') {
+        if (!ctx.phone) throw new Error('אין מספר טלפון באירוע');
+        await eb.sendTemplate(client, { phone: ctx.phone, templateName: cfg.template_name, params: ctx.name ? [ctx.name] : [], customerName: ctx.name });
+        await logMessage(db, client.id, null, ctx.phone, ctx.name, 'outbound', 'bot', 'template', null, cfg.template_name, 'sent', null);
+        detail = `נשלחה תבנית ${cfg.template_name}`;
+      } else if (a.action === 'send_text') {
+        if (!ctx.phone) throw new Error('אין מספר טלפון באירוע');
+        const win = await eb.conversationWindow(client, ctx.phone);
+        if (!win.isOpen) throw new Error('חלון 24 השעות סגור — נדרשת תבנית');
+        await eb.sendMessage(client, { to: { phoneNumber: ctx.phone }, type: 'text', text: interpolate(cfg.text || '', ctx) });
+        await logMessage(db, client.id, null, ctx.phone, ctx.name, 'outbound', 'bot', 'text', interpolate(cfg.text || '', ctx), null, 'sent', null);
+        detail = 'נשלחה הודעת טקסט';
+      } else if (a.action === 'create_lead') {
+        await eb.createLead(client, { name: ctx.name || ctx.phone, mobile: ctx.phone, note: interpolate(cfg.note || '', ctx) });
+        detail = 'נוצר ליד';
+      } else if (a.action === 'add_lead_activity') {
+        const leadId = data.leadId || data.id;
+        if (!leadId) throw new Error('לא זוהה מזהה ליד באירוע');
+        await eb.addLeadActivity(client, leadId, interpolate(cfg.note || '', ctx));
+        detail = 'נרשמה פעילות בכרטיס ליד';
+      } else if (a.action === 'create_customer') {
+        await eb.createCustomer(client, { firstName: ctx.name || '', mobile: ctx.phone, note: interpolate(cfg.note || '', ctx) });
+        detail = 'נוצר לקוח';
+      } else if (a.action === 'add_customer_activity') {
+        if (!cid) throw new Error('לא זוהה מזהה לקוח באירוע');
+        await eb.addCustomerActivity(client, cid, interpolate(cfg.note || '', ctx));
+        detail = 'נרשמה פעילות בכרטיס לקוח';
+      } else if (a.action === 'create_invoice') {
+        if (!cid) throw new Error('לא זוהה מזהה לקוח באירוע');
+        await eb.createInvoice(client, { customerId: cid, amount: +cfg.amount, description: interpolate(cfg.description || '', ctx) });
+        detail = `הופקה חשבונית על ₪${cfg.amount}`;
+      } else if (a.action === 'payment_link') {
+        await eb.createPaymentSession(client, { customerId: cid || undefined, amount: +cfg.amount, description: interpolate(cfg.description || '', ctx) });
+        detail = `נוצר קישור תשלום על ₪${cfg.amount}`;
+      } else if (a.action === 'gift_card') {
+        await eb.createGiftCard(client, { customerId: cid || undefined, amount: +cfg.amount });
+        detail = `נוצר קישור שובר מתנה על ₪${cfg.amount}`;
+      }
+
+      if (a.handoff_bot_id && ctx.phone) {
+        const bot = await db.prepare(`SELECT * FROM bots WHERE id=? AND is_live=1`).bind(a.handoff_bot_id).first();
+        if (bot) {
+          await db.prepare(`UPDATE bot_sessions SET status='done' WHERE client_id=? AND contact_phone=? AND status IN ('active','waiting','automation_handoff')`)
+            .bind(client.id, ctx.phone).run();
+          await db.prepare(`INSERT INTO bot_sessions (client_id, bot_id, contact_phone, customer_name, status, current_step, trigger_data) VALUES (?,?,?,?,'automation_handoff',0,?)`)
+            .bind(client.id, bot.id, ctx.phone, ctx.name || null, JSON.stringify({ automation_id: a.id, event: eventType })).run();
+          detail += ` · תגובה תחובר לבוט "${bot.name}"`;
+        }
+      }
+      results.push(`${a.name}: ${detail || a.action}`);
+    } catch (err) {
+      results.push(`${a.name}: נכשל — ${String(err.message || err)}`);
+    }
+  }
+  return results.join(' | ');
 }

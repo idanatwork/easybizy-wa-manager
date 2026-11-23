@@ -33,6 +33,20 @@ CREATE TABLE IF NOT EXISTS bots (
 );
 CREATE INDEX IF NOT EXISTS idx_bots_client ON bots(client_id);
 
+CREATE TABLE IF NOT EXISTS automations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  trigger_event TEXT NOT NULL,                  -- e.g. leads.create, appointments.create
+  action TEXT NOT NULL,                         -- send_template | send_text | create_lead | ...
+  config TEXT NOT NULL DEFAULT '{}',            -- JSON: template_name, text, note, amount, ...
+  handoff_bot_id INTEGER REFERENCES bots(id) ON DELETE SET NULL,  -- optional: if the customer replies, this bot takes over
+  is_active INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_automations_client ON automations(client_id, trigger_event);
+
 CREATE TABLE IF NOT EXISTS bot_sessions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,

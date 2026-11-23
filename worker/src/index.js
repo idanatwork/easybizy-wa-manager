@@ -5,7 +5,7 @@
      /api/* (Bearer ADMIN_PASSWORD) — clients, bots, conversations, activity
    Secrets live only here (D1 + worker secrets); the public static site holds none. */
 import * as eb from './easybizy.js';
-import { handleEvent } from './engine.js';
+import { handleEvent, runAutomations } from './engine.js';
 
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extra } });
@@ -61,6 +61,11 @@ export default {
         let outcome = { result: 'ignored', details: '' };
         try {
           outcome = await handleEvent(env, client, envelope);
+          const autoDetails = await runAutomations(env, client, envelope);
+          if (autoDetails) {
+            outcome.details = [outcome.details, `אוטומציות: ${autoDetails}`].filter(Boolean).join(' · ');
+            if (outcome.result === 'ignored' || outcome.result === 'no_bot') outcome.result = 'automation_ran';
+          }
         } catch (err) {
           outcome = { result: 'failed', details: String(err.message || err) };
         }
@@ -149,6 +154,16 @@ export default {
               JSON.stringify(body.steps || []), body.window_closed_template || null, body.is_live ? 1 : 0).run();
           return withCors(json({ bot: { id: r.meta.last_row_id, ...body } }));
         }
+        if (sub === 'automations' && req.method === 'GET') {
+          const rows = (await env.DB.prepare(`SELECT * FROM automations WHERE client_id=? ORDER BY id`).bind(client.id).all()).results;
+          return withCors(json({ automations: rows.map(a => ({ ...a, config: JSON.parse(a.config || '{}'), is_active: !!a.is_active })) }));
+        }
+        if (sub === 'automations' && req.method === 'POST') {
+          const r = await env.DB.prepare(`INSERT INTO automations (client_id, name, trigger_event, action, config, handoff_bot_id, is_active) VALUES (?,?,?,?,?,?,?)`)
+            .bind(client.id, body.name, body.trigger_event, body.action, JSON.stringify(body.config || {}),
+              body.handoff_bot_id || null, body.is_active ? 1 : 0).run();
+          return withCors(json({ automation: { id: r.meta.last_row_id, ...body } }));
+        }
         if (sub === 'conversations' && req.method === 'GET') {
           const rows = (await env.DB.prepare(`
             SELECT s.*, b.name AS bot_name,
@@ -182,6 +197,26 @@ export default {
           const r = await env.DB.prepare(`INSERT INTO bots (client_id, name, trigger_type, keywords, event, steps, window_closed_template, is_live) VALUES (?,?,?,?,?,?,?,0)`)
             .bind(target, bot.name + ' (עותק)', bot.trigger_type, bot.keywords, bot.event, bot.steps, bot.window_closed_template).run();
           return withCors(json({ bot: { id: r.meta.last_row_id } }));
+        }
+      }
+
+      /* automations: single edit/delete */
+      const am = path.match(/^\/api\/automations\/(\d+)$/);
+      if (am) {
+        const auto = await env.DB.prepare(`SELECT * FROM automations WHERE id=?`).bind(am[1]).first();
+        if (!auto) return withCors(json({ error: 'not found' }, 404));
+        if (req.method === 'GET') return withCors(json({ automation: { ...auto, config: JSON.parse(auto.config || '{}'), is_active: !!auto.is_active } }));
+        if (req.method === 'PATCH') {
+          await env.DB.prepare(`UPDATE automations SET name=COALESCE(?,name), trigger_event=COALESCE(?,trigger_event), action=COALESCE(?,action), config=COALESCE(?,config), handoff_bot_id=?, is_active=COALESCE(?,is_active), updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=?`)
+            .bind(body.name ?? null, body.trigger_event ?? null, body.action ?? null,
+              body.config ? JSON.stringify(body.config) : null,
+              body.handoff_bot_id === undefined ? auto.handoff_bot_id : body.handoff_bot_id,
+              body.is_active === undefined ? null : (body.is_active ? 1 : 0), auto.id).run();
+          return withCors(json({ ok: true }));
+        }
+        if (req.method === 'DELETE') {
+          await env.DB.prepare(`DELETE FROM automations WHERE id=?`).bind(auto.id).run();
+          return withCors(json({ ok: true }));
         }
       }
 

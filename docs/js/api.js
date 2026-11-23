@@ -12,6 +12,7 @@ const Api = (() => {
     messages: JSON.parse(JSON.stringify(DEMO.messages)),
     events: JSON.parse(JSON.stringify(DEMO.events)),
     templates: JSON.parse(JSON.stringify(DEMO.templates)),
+    automations: JSON.parse(JSON.stringify(DEMO.automations)),
     nextId: 900,
   };
 
@@ -116,6 +117,34 @@ const Api = (() => {
         d.bots.push(copy); return { bot: copy };
       }
       return request('/api/bots/' + id + '/duplicate', { method: 'POST', body: { client_id: targetClientId } });
+    },
+
+    async listAutomations(clientId) {
+      if (DEMO_MODE) { await delay(); return { automations: d.automations.filter(a => a.client_id === +clientId) }; }
+      return request('/api/clients/' + clientId + '/automations');
+    },
+    async getAutomation(id) {
+      if (DEMO_MODE) { await delay(); return { automation: d.automations.find(a => a.id === +id) }; }
+      return request('/api/automations/' + id);
+    },
+    async saveAutomation(clientId, automation) {
+      if (DEMO_MODE) {
+        await delay();
+        if (automation.id) { Object.assign(d.automations.find(a => a.id === +automation.id), automation); return { automation }; }
+        const a = { ...automation, id: ++d.nextId, client_id: +clientId, runs_week: 0, is_active: false, created_at: new Date().toISOString() };
+        d.automations.push(a); return { automation: a };
+      }
+      return automation.id
+        ? request('/api/automations/' + automation.id, { method: 'PATCH', body: automation })
+        : request('/api/clients/' + clientId + '/automations', { method: 'POST', body: automation });
+    },
+    async toggleAutomation(id, isActive) {
+      if (DEMO_MODE) { await delay(); d.automations.find(a => a.id === +id).is_active = isActive; return { ok: true }; }
+      return request('/api/automations/' + id, { method: 'PATCH', body: { is_active: isActive } });
+    },
+    async deleteAutomation(id) {
+      if (DEMO_MODE) { await delay(); d.automations = d.automations.filter(a => a.id !== +id); return { ok: true }; }
+      return request('/api/automations/' + id, { method: 'DELETE' });
     },
 
     async listConversations(clientId) {
