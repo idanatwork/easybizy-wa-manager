@@ -13,4 +13,4 @@ ALLOWED_EMAILS = "idanatwork@gmail.com"
 [[d1_databases]]
 binding = "DB"
 database_name = "wa-manager"
-database_id = "REPLACE_WITH_D1_ID"   # from: wrangler d1 create wa-manager
+database_id = "aa8af9ba-ec1d-4621-a95b-6247c6b4602b"

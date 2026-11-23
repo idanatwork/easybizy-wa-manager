@@ -6,6 +6,6 @@
    (console.cloud.google.com -> Credentials). Not a secret. Needed once
    WORKER_URL is set; sign-in is Google-only. */
 const CONFIG = {
-  WORKER_URL: "",
+  WORKER_URL: "https://wa-manager.idanatwork.workers.dev",
   GOOGLE_CLIENT_ID: "560597118963-pf9ng7eiibfqjsseipi7nqlabpvn83a5.apps.googleusercontent.com",
 };
