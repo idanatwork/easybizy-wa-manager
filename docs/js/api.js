@@ -188,6 +188,35 @@ const Api = (() => {
       return request('/api/automations/' + id, { method: 'DELETE' });
     },
 
+    async getDash(clientId) {
+      if (DEMO_MODE) {
+        await delay();
+        const cid = +clientId;
+        const ev = d.events.filter(e => e.client_id === cid);
+        const isRun = r => r === 'bot_ran' || r === 'automation_ran';
+        const dayKey = iso => iso.slice(0, 10);
+        const today = dayKey(new Date().toISOString());
+        const days = [];
+        for (let i = 13; i >= 0; i--) {
+          const k = dayKey(new Date(Date.now() - i * 86400000).toISOString());
+          const de = ev.filter(e => dayKey(e.received_at) === k);
+          days.push({ date: k, runs: de.filter(e => isRun(e.result)).length, errors: de.filter(e => e.result === 'failed').length });
+        }
+        const todayEvs = ev.filter(e => dayKey(e.received_at) === today);
+        return { dash: {
+          days,
+          runs_today: todayEvs.filter(e => isRun(e.result)).length,
+          errors_today: todayEvs.filter(e => e.result === 'failed').length,
+          runs_30d: ev.filter(e => isRun(e.result)).length,
+          errors_30d: ev.filter(e => e.result === 'failed').length,
+          active_flows: cid === 1 ? 2 : 0,
+          top_bots: d.bots.filter(b => b.client_id === cid).map(b => ({ name: b.name, runs: b.runs_week || 0 })).sort((a, b) => b.runs - a.runs).slice(0, 3),
+          top_automations: d.automations.filter(a => a.client_id === cid).map(a => ({ name: a.trigger_event, runs: a.runs_week || 0 })).sort((a, b) => b.runs - a.runs).slice(0, 3),
+          recent_errors: ev.filter(e => e.result === 'failed').sort((a, b) => b.received_at.localeCompare(a.received_at)).slice(0, 5),
+        } };
+      }
+      return request('/api/clients/' + clientId + '/dash');
+    },
     async listActivity(params = {}) {
       if (DEMO_MODE) {
         await delay();

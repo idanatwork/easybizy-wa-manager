@@ -143,7 +143,7 @@ export default {
           .bind(body.name, body.api_key, body.api_secret, token, body.notes || null).run();
         return withCors(json({ client: clientOut(await getClient(env, r.meta.last_row_id)) }));
       }
-      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations|testbot))?$/);
+      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations|testbot|dash))?$/);
       if (cm) {
         const client = await getClient(env, cm[1]);
         if (!client) return withCors(json({ error: 'not found' }, 404));
@@ -188,6 +188,28 @@ export default {
             // back to typing a template name manually.
             return withCors(json({ templates: [], templates_error: String(err.message || err) }));
           }
+        }
+        if (sub === 'dash' && req.method === 'GET') {
+          const since30 = `strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days')`;
+          const rows = (await env.DB.prepare(`SELECT date(received_at) AS d, SUM(CASE WHEN result IN ('bot_ran','automation_ran') THEN 1 ELSE 0 END) AS runs, SUM(CASE WHEN result='failed' THEN 1 ELSE 0 END) AS errors FROM webhook_events WHERE client_id=? AND received_at > ${since30} GROUP BY date(received_at)`).bind(client.id).all()).results;
+          const byDay = Object.fromEntries(rows.map(r => [r.d, r]));
+          const days = [];
+          for (let i = 13; i >= 0; i--) {
+            const k = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+            const r = byDay[k];
+            days.push({ date: k, runs: r ? r.runs : 0, errors: r ? r.errors : 0 });
+          }
+          const today = new Date().toISOString().slice(0, 10);
+          const t = byDay[today] || { runs: 0, errors: 0 };
+          const active = await env.DB.prepare(`SELECT COUNT(*) AS c FROM bot_sessions WHERE client_id=? AND status IN ('active','waiting','automation_handoff')`).bind(client.id).first();
+          const topBots = (await env.DB.prepare(`SELECT b.name AS name, COUNT(*) AS runs FROM bot_sessions s JOIN bots b ON b.id=s.bot_id WHERE s.client_id=? AND s.created_at > ${since30} GROUP BY s.bot_id ORDER BY runs DESC LIMIT 3`).bind(client.id).all()).results;
+          const topAutos = (await env.DB.prepare(`SELECT event_type AS name, COUNT(*) AS runs FROM webhook_events WHERE client_id=? AND result='automation_ran' AND received_at > ${since30} GROUP BY event_type ORDER BY runs DESC LIMIT 3`).bind(client.id).all()).results;
+          const errs = (await env.DB.prepare(`SELECT event_type, details, received_at FROM webhook_events WHERE client_id=? AND result='failed' ORDER BY id DESC LIMIT 5`).bind(client.id).all()).results;
+          return withCors(json({ ok: true, dash: {
+            days, runs_today: t.runs, errors_today: t.errors,
+            runs_30d: rows.reduce((s, r) => s + r.runs, 0), errors_30d: rows.reduce((s, r) => s + r.errors, 0),
+            active_flows: active ? active.c : 0, top_bots: topBots, top_automations: topAutos, recent_errors: errs,
+          } }));
         }
         if (sub === 'testbot' && req.method === 'POST') {
           const phone = String(body.phone || '').replace(/[\s-]/g, '');

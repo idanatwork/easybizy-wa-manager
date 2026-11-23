@@ -69,7 +69,7 @@
   Theme.init();
 
   /* ---------------- shell ---------------- */
-  const CLIENT_SECTIONS = [['setup', 'הגדרה', '▤'], ['bots', 'בוטים', '✦'], ['automations', 'אוטומציות', '⚡'], ['activity', 'פעילות', '≡']];
+  const CLIENT_SECTIONS = [['dash', 'דשבורד', '▣'], ['setup', 'הגדרה', '▤'], ['bots', 'בוטים', '✦'], ['automations', 'אוטומציות', '⚡'], ['activity', 'פעילות', '≡']];
 
   /* active: 'clients' for the global list. clientNav: { client, section } renders
      the sidebar as that client's menu instead. */
@@ -92,11 +92,12 @@
       <div class="layout">
         <div class="topbar">
           <button class="icon-btn" id="nav-burger" title="תפריט">☰</button>
-          <span class="brand" style="padding:0"><span class="logo">W</span> WA Manager</span>
+          <span class="brand"><img class="logo" src="assets/logo-icon.png" alt="Tech Mate"> WhatsApp Manager</span>
+          <button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר">◐</button>
         </div>
         <div class="nav-overlay" id="nav-overlay"></div>
         <aside class="sidebar">
-          <div class="brand"><span class="logo">W</span> WA Manager<button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר" style="margin-inline-start:auto">◐</button></div>
+          <div class="brand"><img class="logo" src="assets/logo-icon.png" alt="Tech Mate"><span class="brand-name">WhatsApp Manager<span class="brand-sub">for EasyBizy</span></span></div>
           ${nav}
           <div class="spacer"></div>
           ${who}
@@ -117,8 +118,8 @@
     if (!Api.demoMode) return viewGoogleLogin();
     root.innerHTML = `
       <div class="login-wrap"><div class="login-card">
-        <div class="logo">W</div>
-        <h1>WA Manager</h1>
+        <img class="logo" src="assets/logo-full.png" alt="Tech Mate">
+        <h1>WhatsApp Manager<span class="brand-sub" style="font-size:13px">for EasyBizy</span></h1>
         <p>ניהול וואטסאפ לכל לקוחות EasyBizy במקום אחד · <b>מצב הדגמה</b> — נתוני דוגמה, כניסה חופשית</p>
         <button class="btn" style="width:100%;justify-content:center" id="demo-in">כניסה להדגמה</button>
       </div></div>`;
@@ -132,8 +133,8 @@
   function viewGoogleLogin() {
     root.innerHTML = `
       <div class="login-wrap"><div class="login-card">
-        <div class="logo">W</div>
-        <h1>WA Manager</h1>
+        <img class="logo" src="assets/logo-full.png" alt="Tech Mate">
+        <h1>WhatsApp Manager<span class="brand-sub" style="font-size:13px">for EasyBizy</span></h1>
         <p>ניהול וואטסאפ לכל לקוחות EasyBizy במקום אחד</p>
         <div id="g-btn" style="display:flex;justify-content:center;margin-top:18px;min-height:44px"></div>
         <p class="hint" style="text-align:center;margin-top:14px">הכניסה מוגבלת לחשבון Google מורשה בלבד</p>
@@ -244,7 +245,7 @@
   }
 
   /* ---------------- client detail ---------------- */
-  async function viewClient(id, tab = 'setup') {
+  async function viewClient(id, tab = 'dash') {
     clearInterval(state.convoTimer);
     const { client } = await Api.getClient(id);
     state.currentClient = client;
@@ -257,6 +258,7 @@
       </div>
       <div id="tab-body"></div>`, { client, section: tab });
     const body = document.getElementById('tab-body');
+    if (tab === 'dash') renderDash(body, client);
     if (tab === 'setup') renderSetup(body, client);
     if (tab === 'bots') renderBots(body, client);
     if (tab === 'automations') renderAutomations(body, client);
@@ -413,6 +415,10 @@
 
   /* ---- setup tab ---- */
   async function renderSetup(el, client) {
+    const ck = (ev, req) => {
+      const seen = client.events_seen?.includes(ev);
+      return `<div class="ck ${seen ? 'seen' : ''}"><span class="box">${seen ? '✓' : ''}</span><span>${esc(EVENT_LABELS[ev])}</span>${req ? `<span class="ck-req">${esc(req)}</span>` : ''}<span class="mono" style="color:var(--muted);font-size:11.5px">${esc(ev)}</span><span class="ck-state">${seen ? 'התקבל' : 'עוד לא התקבל'}</span></div>`;
+    };
     el.innerHTML = `
       <div class="grid-2">
         <div class="card">
@@ -429,8 +435,11 @@
         <div class="card">
           <h3>Webhook ל-EasyBizy</h3>
           <label class="field"><span>Payload URL</span>
-            <input class="input" dir="ltr" id="wh-url" value="" placeholder="— יושלם אחרי פריסת ה-Worker —" disabled>
-            <span class="hint">כתובת ייחודית ללקוח. תופיע כאן אחרי שה-backend יעלה לאוויר.</span>
+            <div style="display:flex;gap:8px">
+              <input class="input" dir="ltr" id="wh-url" value="${esc((CONFIG.WORKER_URL || 'https://wa-manager.idanatwork.workers.dev') + '/hook/' + client.webhook_token)}" readonly style="flex:1">
+              <button class="btn secondary small" id="wh-copy" type="button">העתקה</button>
+            </div>
+            <span class="hint">כתובת ייחודית ללקוח הזה — מדביקים אותה במסוף EasyBizy ← Webhooks כדי שיעבירו אליה אירועים; בלעדיה הבוטים לא יגיבו לתשובות לקוחות.</span>
           </label>
           <label class="field"><span>סוד webhook (כותרת X-Webhook-Secret)</span>
             <input class="input" dir="ltr" type="password" id="wh-secret" placeholder="${client.webhook_secret_set ? 'שמור — הקלידו חדש להחלפה' : 'אופציונלי, מומלץ'}">
@@ -449,10 +458,14 @@
         </div>
       </div>
       <div class="card">
-        <h3>רשימת אירועים</h3>
-        <p class="page-sub" style="margin-bottom:14px">להפעיל את כל 10 האירועים במסוף EasyBizy ← Webhooks. סימון ✓ = האירוע הגיע אלינו לפחות פעם אחת.</p>
+        <h3>אירועים להפעלה במסוף EasyBizy</h3>
+        <p class="page-sub" style="margin-bottom:6px">במסוף EasyBizy ← Webhooks מסמנים את כל האירועים הבאים, כדי ש-EasyBizy תעביר אותם אלינו דרך הכתובת למעלה. ליד כל אירוע כתוב אם הוא כבר הגיע אלינו בפועל.</p>
         <div class="checklist">
-          ${ALL_EVENTS.map(ev => `<div class="ck ${client.events_seen?.includes(ev) ? 'seen' : ''}"><span class="box">${client.events_seen?.includes(ev) ? '✓' : ''}</span>${esc(EVENT_LABELS[ev])} <span class="mono" style="color:var(--muted);font-size:11.5px">${esc(ev)}</span></div>`).join('')}
+          <div class="ck-group">אירועים עסקיים — מפעילים אוטומציות ובוטים שמוגדרים לפי אירוע</div>
+          ${ALL_EVENTS.filter(ev => !ev.startsWith('whatsapp')).map(ev => ck(ev)).join('')}
+          <div class="ck-group">הודעות וואטסאפ — מעקב אחר הודעות נכנסות וסטטוס מסירה</div>
+          ${['whatsapp-messages.received'].map(ev => ck(ev, 'חובה — בלעדיו הבוטים לא יקבלו תשובות מלקוחות')).join('')}
+          ${ALL_EVENTS.filter(ev => ev.startsWith('whatsapp') && ev !== 'whatsapp-messages.received').map(ev => ck(ev)).join('')}
         </div>
       </div>
       <div class="card">
@@ -485,6 +498,11 @@
       el.querySelector('#test-result').innerHTML = res.ok
         ? `<div style="margin-top:12px">${statusBadge('connected')} <b class="num">${esc(res.whatsapp_number || '')}</b> · ${qualityBadge(res.quality_rating)} · יתרה יומית: <span class="num">${res.balance?.used_24h ?? 0}/${res.balance?.limit_24h ?? '—'}</span></div>`
         : `<div style="margin-top:12px">${statusBadge('key_rejected')} <span style="color:var(--red)">${esc(res.error || 'החיבור נכשל')}</span></div>`;
+    };
+    el.querySelector('#wh-copy').onclick = async () => {
+      const inp = el.querySelector('#wh-url');
+      try { await navigator.clipboard.writeText(inp.value); toast('הכתובת הועתקה'); }
+      catch { inp.select(); document.execCommand('copy'); toast('הכתובת הועתקה'); }
     };
     el.querySelector('#wh-save').onclick = async () => {
       const v = el.querySelector('#wh-secret').value;
@@ -539,6 +557,46 @@
     return TRIGGER_LABELS[b.trigger_type] || b.trigger_type;
   }
 
+
+  /* ---- dashboard tab ---- */
+  async function renderDash(el, client) {
+    const { dash } = await Api.getDash(client.id);
+    const maxV = Math.max(1, ...dash.days.map(d => d.runs + d.errors));
+    const bars = dash.days.map(d => {
+      const rh = Math.round(d.runs / maxV * 100), eh = Math.round(d.errors / maxV * 100);
+      return `<div class="bar" title="${d.date}: ${d.runs} ריצות, ${d.errors} שגיאות">${d.errors ? `<div class="errs" style="height:${eh}%"></div>` : ''}${d.runs ? `<div class="runs" style="height:${rh}%"></div>` : ''}</div>`;
+    }).join('');
+    const xlabels = dash.days.map((d, i) => (i % 2 === 0 ? `<span>${d.date.slice(8)}.${d.date.slice(5,7)}</span>` : '<span></span>')).join('');
+    el.innerHTML = `
+      <div class="dash-grid">
+        <div class="stat"><div class="s-label">חיבור</div><div class="s-value">${statusBadge(client.connection_status)}</div><div class="s-sub">${client.last_event_at ? 'webhook אחרון ' + fmtAgo(client.last_event_at) : 'עדיין לא התקבל webhook'}</div></div>
+        <div class="stat"><div class="s-label">ריצות היום</div><div class="s-value num">${dash.runs_today}</div><div class="s-sub">${dash.errors_today ? dash.errors_today + ' שגיאות היום' : 'ללא שגיאות היום'}</div></div>
+        <div class="stat"><div class="s-label">זרימות פעילות כרגע</div><div class="s-value num">${dash.active_flows}</div><div class="s-sub">שיחות שהבוט באמצען</div></div>
+      </div>
+      <div class="dash-2col">
+        <div class="card" style="margin:0"><h3>ריצות — 14 ימים אחרונים</h3>
+          <div class="chart">${bars}</div><div class="chart-x">${xlabels}</div>
+          <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>ריצות (${dash.runs_30d} ב-30 ימים)</span><span><span class="dotk" style="background:var(--red)"></span>שגיאות (${dash.errors_30d})</span></div>
+        </div>
+        <div class="card" style="margin:0"><h3>פעולות מהירות</h3>
+          <div class="quick-actions" style="flex-direction:column;align-items:stretch">
+            <a class="btn" href="#/client/${client.id}/builder" style="justify-content:center">בוט חדש</a>
+            <a class="btn secondary" href="#/client/${client.id}/automation" style="justify-content:center">אוטומציה חדשה</a>
+            <a class="btn secondary" href="#/client/${client.id}/bots" style="justify-content:center">שליחת טסט לבוט</a>
+            <a class="btn secondary" href="#/client/${client.id}/setup" style="justify-content:center">בדיקת חיבור</a>
+          </div>
+        </div>
+      </div>
+      <div class="dash-2col">
+        <div class="card" style="margin:0"><h3>שגיאות אחרונות</h3>
+          ${dash.recent_errors.length ? dash.recent_errors.map(e => `<div class="toplist-row"><span class="cell-sub num" style="white-space:nowrap">${fmtDateTime(e.received_at)}</span><span class="cell-sub">${esc(EVENT_LABELS[e.event_type] || e.event_type)}</span><span class="n" style="color:var(--red);font-weight:500;font-size:12px">${esc(e.details || '')}</span></div>`).join('') : '<div class="empty" style="padding:18px">אין שגיאות ב-30 הימים האחרונים</div>'}
+        </div>
+        <div class="card" style="margin:0"><h3>הבוטים והאוטומציות הפעילים ביותר</h3>
+          ${dash.top_bots.length ? dash.top_bots.map(b => `<div class="toplist-row">✦ ${esc(b.name)}<span class="n">${b.runs}</span></div>`).join('') : '<div class="cell-sub" style="padding:6px 0">אין ריצות בוטים עדיין</div>'}
+          ${dash.top_automations.length ? dash.top_automations.map(a => `<div class="toplist-row">⚡ ${esc(EVENT_LABELS[a.name] || a.name)}<span class="n">${a.runs}</span></div>`).join('') : '<div class="cell-sub" style="padding:6px 0">אין ריצות אוטומציות עדיין</div>'}
+        </div>
+      </div>`;
+  }
 
   /* ---- activity tab / page ---- */
   async function renderActivity(el, clientId) {
@@ -940,7 +998,7 @@
       const parts = h.split('/');
       if (parts[3] === 'builder') return viewBuilder(a, parts[4] || null);
       if (parts[3] === 'automation') return viewAutomation(a, parts[4] || null);
-      return viewClient(a, parts[3] || 'setup');
+      return viewClient(a, parts[3] || 'dash');
     }
     viewClients();
   }

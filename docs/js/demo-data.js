@@ -90,7 +90,26 @@ const DEMO = (() => {
     ],
   };
 
+  // 30 days of plausible webhook activity per client (statuses only — never message content)
   const events = [];
+  let eid = 1000;
+  const dayPatterns = { 1: [3,5,2,6,4,7,5,3,6,8,4,5,7,9,6,4,5,8,7,5,6,9,4,6,8,5,7,6,9,11], 2: [1,2,0,1,3,1,2,0,2,1,1,3,2,1,0,2,1,1,2,3,1,2,0,1,2,1,3,2,1,2] };
+  const evTypes = ["whatsapp-messages.received", "leads.create", "appointments.create", "whatsapp-messages.received", "appointments.update", "leads.update"];
+  for (const [cid, pat] of Object.entries(dayPatterns)) {
+    pat.forEach((n, dayIdx) => {
+      for (let i = 0; i < n; i++) {
+        const failed = (dayIdx * 7 + i * 13 + +cid) % 11 === 0;
+        const noBot = !failed && (dayIdx + i) % 4 === 0;
+        const et = evTypes[(dayIdx + i * 3) % evTypes.length];
+        events.push({
+          id: eid++, client_id: +cid, event_type: et,
+          result: failed ? "failed" : noBot ? "no_bot" : (et.startsWith("whatsapp") ? "bot_ran" : "automation_ran"),
+          details: failed ? "שגיאת שליחה: חלון 24 השעות סגור" : noBot ? "אין בוט שמתאים להודעה" : "הבוט השיב וסיים",
+          received_at: new Date(now - dayIdx * 24 * 3600 * 1000 - i * 47 * 60000 - 3600 * 1000).toISOString(),
+        });
+      }
+    });
+  }
 
   const templates = {
     1: [
