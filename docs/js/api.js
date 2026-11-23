@@ -82,6 +82,11 @@ const Api = (() => {
       }
       return request('/api/clients/' + id + '/test', { method: 'POST' });
     },
+    async testBotSend(clientId, payload) {
+      if (DEMO_MODE) { await delay(700); return { ok: true, waiting: true };
+      }
+      return request('/api/clients/' + clientId + '/testbot', { method: 'POST', body: payload });
+    },
     async getTemplates(clientId) {
       if (DEMO_MODE) { await delay(); return { templates: d.templates[clientId] || [] }; }
       return request('/api/clients/' + clientId + '/templates');

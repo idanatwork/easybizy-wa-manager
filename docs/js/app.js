@@ -761,7 +761,41 @@
       toast('הבוט נשמר');
       location.hash = `#/client/${clientId}/bots`;
     };
-    $('#send-test').onclick = () => toast('שליחת טסט תעבוד אחרי חיבור ה-backend');
+    $('#send-test').onclick = () => {
+      const m = modal(`
+        <h3>שליחת טסט לנייד</h3>
+        <p class="page-sub">ההודעות הראשונות של הבוט (עד נקודת ההמתנה לתשובה) יישלחו בוואטסאפ דרך חשבון EasyBizy של ${esc(client.name)}. שם פרטי יישלח כ״בדיקה״ ומשתני אירוע יישארו ריקים.</p>
+        <label class="field"><span>מספר נייד לטסט</span><input class="input" dir="ltr" id="test-phone" inputmode="tel" placeholder="05X-XXXXXXX" value="${esc(client.test_phone || '')}"></label>
+        <div class="modal-actions">
+          <button class="btn" id="test-go">שליחה</button>
+          <button class="btn secondary" id="test-cancel">ביטול</button>
+        </div>`);
+      m.querySelector('#test-cancel').onclick = () => m.remove();
+      m.querySelector('#test-go').onclick = async (e) => {
+        const phone = m.querySelector('#test-phone').value.trim();
+        if (!phone) return toast('חסר מספר נייד');
+        const btn = e.currentTarget;
+        btn.disabled = true; btn.textContent = 'שולח…';
+        try {
+          const body = {
+            name: $('#bname').value.trim(),
+            trigger_type: $('#trig').value,
+            keywords: $('#kw').value.trim(),
+            event: $('#ev').value,
+            window_closed_template: $('#wct').value,
+            steps: bot.steps,
+          };
+          if (!body.steps.length) { btn.disabled = false; btn.textContent = 'שליחה'; return toast('לבוט אין צעדים עדיין'); }
+          if (!Api.demoMode && phone !== (client.test_phone || '')) { await Api.updateClient(client.id, { test_phone: phone }); client.test_phone = phone; }
+          await Api.testBotSend(client.id, { phone, bot: body });
+          m.remove();
+          toast(Api.demoMode ? 'נשלח (מצב הדגמה)' : 'נשלח! ההודעות בדרך לנייד');
+        } catch (err) {
+          btn.disabled = false; btn.textContent = 'שליחה';
+          toast('השליחה נכשלה: ' + (err.message || err));
+        }
+      };
+    };
     renderSteps();
   }
 

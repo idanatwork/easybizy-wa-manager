@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS clients (
   last_event_at TEXT,
   events_seen TEXT DEFAULT '[]',                -- JSON array of event keys seen at least once
   notes TEXT,
+  test_phone TEXT,
   created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 

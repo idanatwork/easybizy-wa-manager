@@ -6,7 +6,7 @@
      /api/* (Bearer session token) — clients, bots, automations, activity
    Secrets live only here (D1 + worker secrets); the public static site holds none. */
 import * as eb from './easybizy.js';
-import { handleEvent, runAutomations } from './engine.js';
+import { handleEvent, runAutomations, sendBotTest } from './engine.js';
 
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...extra } });
@@ -26,7 +26,7 @@ const clientOut = (c) => c && ({
   connection_status: c.connection_status, whatsapp_number: c.whatsapp_number,
   display_name: c.display_name, quality_rating: c.quality_rating,
   last_checked_at: c.last_checked_at, last_event_at: c.last_event_at,
-  events_seen: JSON.parse(c.events_seen || '[]'), notes: c.notes, created_at: c.created_at,
+  events_seen: JSON.parse(c.events_seen || '[]'), notes: c.notes, test_phone: c.test_phone, created_at: c.created_at,
 });
 
 /* --- Google sign-in: verify the ID token signature against Google's keys,
@@ -143,7 +143,7 @@ export default {
           .bind(body.name, body.api_key, body.api_secret, token, body.notes || null).run();
         return withCors(json({ client: clientOut(await getClient(env, r.meta.last_row_id)) }));
       }
-      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations))?$/);
+      const cm = path.match(/^\/api\/clients\/(\d+)(\/(test|templates|mytemplates|bots|automations|testbot))?$/);
       if (cm) {
         const client = await getClient(env, cm[1]);
         if (!client) return withCors(json({ error: 'not found' }, 404));
@@ -151,8 +151,8 @@ export default {
 
         if (!sub && req.method === 'GET') return withCors(json({ client: clientOut(client) }));
         if (!sub && req.method === 'PATCH') {
-          await env.DB.prepare(`UPDATE clients SET name=COALESCE(?,name), api_key=COALESCE(?,api_key), api_secret=COALESCE(?,api_secret), webhook_secret=COALESCE(?,webhook_secret), notes=COALESCE(?,notes) WHERE id=?`)
-            .bind(body.name ?? null, body.api_key ?? null, body.api_secret ?? null, body.webhook_secret ?? null, body.notes ?? null, client.id).run();
+          await env.DB.prepare(`UPDATE clients SET name=COALESCE(?,name), api_key=COALESCE(?,api_key), api_secret=COALESCE(?,api_secret), webhook_secret=COALESCE(?,webhook_secret), notes=COALESCE(?,notes), test_phone=COALESCE(?,test_phone) WHERE id=?`)
+            .bind(body.name ?? null, body.api_key ?? null, body.api_secret ?? null, body.webhook_secret ?? null, body.notes ?? null, body.test_phone ?? null, client.id).run();
           return withCors(json({ client: clientOut(await getClient(env, client.id)) }));
         }
         if (!sub && req.method === 'DELETE') {
@@ -187,6 +187,19 @@ export default {
             // e.g. the client's EasyBizy plan lacks template read access; the UI falls
             // back to typing a template name manually.
             return withCors(json({ templates: [], templates_error: String(err.message || err) }));
+          }
+        }
+        if (sub === 'testbot' && req.method === 'POST') {
+          const phone = String(body.phone || '').replace(/[\s-]/g, '');
+          if (!/^\+?[0-9]{9,15}$/.test(phone)) return withCors(json({ error: 'מספר נייד לא תקין' }, 400));
+          const bot = body.bot && typeof body.bot === 'object' ? body.bot : {};
+          if (!Array.isArray(bot.steps)) bot.steps = [];
+          bot.steps = bot.steps.slice(0, 50);
+          try {
+            const r = await sendBotTest(env, client, bot, phone, body.name);
+            return withCors(json({ ok: true, waiting: !!(r && r.waiting) }));
+          } catch (err) {
+            return withCors(json({ ok: false, error: String(err.message || err) }, 502));
           }
         }
         if (sub === 'mytemplates' && req.method === 'GET') {

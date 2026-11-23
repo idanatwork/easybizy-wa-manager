@@ -43,6 +43,8 @@ async function runSteps(env, client, bot, session, steps, startIdx, ctx) {
   const db = env.DB;
   for (let i = startIdx; i < steps.length; i++) {
     const s = steps[i];
+    // test sends (session.id -1) never run real EasyBizy side-effect actions
+    if (session.id === -1 && s.type === 'easybizy_action') continue;
     ctx.stepLabel = `שלב ${i + 1}`;
     try {
       if (s.type === 'text') {
@@ -167,6 +169,16 @@ function extractContact(data) {
 }
 
 /* Main webhook entry. Returns { result, details } for the activity log. */
+/* Test send: run the bot's opening burst (until the first waiting step) to a
+   phone, with a fake in-memory session. No DB writes, no EasyBizy side effects. */
+export async function sendBotTest(env, client, bot, phone, name) {
+  const steps = botSteps(bot);
+  if (!steps.length) throw new Error('לבוט אין צעדים עדיין');
+  const ctx = { answers: {}, trigger: {}, customerName: name || 'בדיקה' };
+  const session = { id: -1, contact_phone: phone, customer_name: ctx.customerName, easybizy_customer_id: null };
+  return runSteps(env, client, bot, session, steps, 0, ctx);
+}
+
 export async function handleEvent(env, client, envelope) {
   const db = env.DB;
   const eventType = `${envelope.resource}.${envelope.action}`;
