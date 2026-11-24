@@ -41,7 +41,7 @@ a { color: var(--green-dark); }
   background: var(--card);
   border-inline-end: 1px solid var(--line);
   padding: 18px 14px;
-  position: sticky; top: 0; height: 100vh;
+  position: sticky; top: 45px; height: calc(100vh - 45px);
   display: flex; flex-direction: column; gap: 4px;
 }
 .brand {
@@ -75,7 +75,7 @@ a { color: var(--green-dark); }
 .client-nav-head .cn-name { font-weight: 800; font-size: 16px; margin-bottom: 6px; }
 
 /* top bar: always visible (carries the theme toggle); burger + mini brand on mobile only */
-.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; height: 45px; box-sizing: border-box; background: var(--card); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30; }
 .topbar .brand { font-size: 16px; font-weight: 800; padding: 0; display: none; }
 .topbar .logo { width: 28px; height: 28px; border-radius: 8px; object-fit: cover; }
 .topbar #nav-burger { display: none; }
