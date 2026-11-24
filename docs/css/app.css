@@ -695,3 +695,17 @@ svg{width:100%;height:auto;display:block;overflow:visible}
 @media (max-width:420px){
   .hb3grid{grid-template-columns:1fr}
 }
+
+/* mapping page */
+.map-row{display:grid;grid-template-columns:1fr 28px 1.4fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.map-row:last-child{border:0}
+.map-cell{display:flex;flex-direction:column;gap:3px;font-size:13.5px;min-width:0}
+.map-lbl{font-size:11px;font-weight:700;color:var(--muted)}
+.map-sub{font-size:12px;color:var(--muted)}
+.map-arrow{text-align:center;color:var(--muted);font-size:16px}
+.map-meta{display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex:none}
+@media (max-width:640px){
+  .map-row{grid-template-columns:1fr;gap:6px}
+  .map-arrow{display:none}
+  .map-meta{flex-direction:row;flex-wrap:wrap;align-items:center}
+}

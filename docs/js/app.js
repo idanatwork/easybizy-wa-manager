@@ -1019,6 +1019,7 @@
   const BOARD_TABS = [
     ['overview', 'מבט כללי'], ['campaigns', 'קמפיינים'], ['funnel', 'משפך'],
     ['attention', 'דורשים טיפול'], ['messages', 'הודעות אוטומטיות'], ['systems', 'מצב המערכות'],
+    ['mapping', 'מיפוי קיים כיום'],
   ];
   const ils = (n) => '\u20AA' + n.toLocaleString('he-IL');
   const TIP = {
@@ -1173,7 +1174,7 @@
       <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 נתונים לצורך הצגה בלבד, אין חיבור לנתוני הקליניקה</div>
       <div id="board-body"></div>`, null, 'clinic');
     const body = document.getElementById('board-body');
-    ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems }[section] || boardOverview)(body);
+    ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems, mapping: boardMapping }[section] || boardOverview)(body);
   }
 
   function boardOverview(el) {
@@ -1490,6 +1491,55 @@
         </div>
       </div>`;
     }).join('');
+  }
+
+  const MAP_STAMP = '<span class="badge yellow">טרם אומת מול Render</span>';
+  const MAP_HOOKS = [
+    { ev: 'whatsapp-messages.received · הודעה נכנסת', evd: 'מטופל כותב לקליניקה בוואטסאפ',
+      act: 'רישום ניתוח שיחה: תזמוני הודעות, מי כתב אחרון (אוטומטי/צוות), דגלים מהטקסט (בקשת הסרה · חזרו אליי · לא עכשיו), נושא הפנייה הראשונה',
+      mod: 'easybizy_webhook.py', mode: 'מצב analyze' },
+    { ev: 'הודעה נכנסת עם בקשת שינוי/ביטול תור', evd: 'למשל "לא אוכל להגיע", "אפשר לדחות?"',
+      act: 'אם למטופל יש תור ב-3 הימים הקרובים — כתיבת הערה בכרטיס הלקוח באיזיביזי, כדי שהמזכירה תחזור אליו ותמלא מחדש את התור. לא נשלחת הודעה למטופל',
+      mod: 'appt_confirm.py', mode: 'מצב apply / preview' },
+    { ev: 'הודעה ראשונה עם "מספר פנייה" מהאתר', evd: 'קוד בן 5 תווים שהתוסף שותל בטקסט הפתיחה',
+      act: 'שיוך מקור האתר (פרמטרי קמפיין, דף נחיתה, מאתר מפנה) לשיחה — לשיוך לידים לקמפיינים',
+      mod: 'site_wa_ref.py', mode: 'מצב preview' },
+    { ev: 'whatsapp-messages.received / delivered · הודעה יוצאת', evd: 'הצוות או המערכת עונים למטופל',
+      act: 'רישום זמני מענה של הצוות: מתי נענה, כמה זמן חיכתה פנייה ראשונה — מזין את הדשבורד ואת עדכון הסטטוסים',
+      mod: 'easybizy_webhook.py', mode: 'מצב analyze' },
+    { ev: 'whatsapp-messages.failed', evd: 'שליחה נכשלה אצל הספק',
+      act: 'תיעוד תקלת השליחה: שם התבנית ושגיאת הספק (מטושטשת) בלוג בלבד',
+      mod: 'easybizy_webhook.py', mode: 'כל המצבים' },
+  ];
+  const MAP_SCHED = [
+    { ev: 'נתוני שיחה מה-webhook · ריצה מתוזממת', evd: 'סריקה תקופתית של נתוני השיחות והלידים',
+      act: 'מזיז סטטוס ראשי בליד באיזיביזי: חדש→פעיל כשהצוות ענה, מושהה→פעיל כשהליד חזר לכתוב, פעיל→מושהה אחרי 24 שעות בלי מענה, מושהה→לא פעיל שבוע אחרי הפולואפ, לא פעיל בבקשת הסרה מפורשת',
+      mod: 'status_moves.py', mode: 'השהיה מכוונת: 24 שעות / 7 ימים' },
+    { ev: 'נתוני שיחה מה-webhook · ריצה מתוזממת', evd: 'ליד מושהה שלא ענה לצוות 24 שעות',
+      act: 'שולח תבנית פולואפ בוואטסאפ דרך ה-API של איזיביזי — פעם אחת לליד, בלבד',
+      mod: 'followup_send.py', mode: 'חלון שליחה: א-ה 19:30-20:00' },
+  ];
+  const MAP_EXCLUDED = ['קליטת הפניות מטא (CTWA)', 'אינסטגרם (קליטה + ניהול)', 'שיחה שלא נענתה (Twilio)', 'תוסף האתר (/site/wa-ref)', 'סנכרון תורים ותשלומים ל-Optione (booking_sync)', 'תיוג קמפיינים (campaign_sync)', 'הנחיות לפני פייסטייט', 'MedReviews', 'ניטור חשבון וואטסאפ', 'בדיקת חיבור לאיזיביזי', 'דוחות מתוזמנים (הכנסות, מקורות, לידים חסרים)'];
+
+  function boardMapping(el) {
+    const row = (h) => `<div class="map-row">
+      <div class="map-cell"><div class="map-lbl">וובהוק מאיזיביזי</div><b>${h.ev}</b><span class="map-sub">${h.evd}</span></div>
+      <div class="map-arrow">⇐</div>
+      <div class="map-cell"><div class="map-lbl">הפעולה שמתבצעת</div><span>${h.act}</span></div>
+      <div class="map-meta"><span class="badge blue">${h.mod}</span><span class="badge">${h.mode}</span>${MAP_STAMP}</div>
+    </div>`;
+    el.innerHTML = `
+      <div class="att-counters c3">
+        <div class="att-counter" style="--ac:var(--ac-blue)"><div class="ac-num num">${MAP_HOOKS.length}</div><div class="ac-label">שרשראות webhook ← פעולה</div></div>
+        <div class="att-counter" style="--ac:var(--ac-orange)"><div class="ac-num num">${MAP_SCHED.length}</div><div class="ac-label">עם תזמון/השהייה מכוונת</div></div>
+        <div class="att-counter" style="--ac:var(--yellow)"><div class="ac-num num">${MAP_HOOKS.length + MAP_SCHED.length}</div><div class="ac-label">שורות הממתינות לאימות Render</div></div>
+      </div>
+      <div class="alert-strip" style="margin-bottom:12px"><span class="as-ico">ℹ</span><span>המיפוי מבוסס על קוד ה-Git (ziv-whatsapp-attribution, 24.11.2026) בלבד. כל שורה מסומנת <b>טרם אומת מול Render</b> עד להשלמת הגדרות הפריסה והלוגים. נקודת הקליטה: <span class="num">POST /easybizy/webhook</span> עם אימות סוד משותף.</span></div>
+      <div class="card" style="margin:0 0 12px"><h3>וובהוק מאיזיביזי ← פעולה</h3>${MAP_HOOKS.map(row).join('')}</div>
+      <div class="card" style="margin:0 0 12px"><h3>מופעלות מה-webhook עם תזמון או השהייה מכוונת</h3>${MAP_SCHED.map(row).join('')}</div>
+      <details class="att-list card" style="margin:0"><summary><span class="att-title">לא נכללו במיפוי</span><span class="badge">${MAP_EXCLUDED.length} מערכות</span><span class="att-caret">◂</span></summary>
+        <div class="cell-sub" style="margin:6px 16px 12px">למערכות אלה אין webhook שמגיע מאיזיביזי, ולכן הן מחוץ למיפוי לפי ההגדרה: ${MAP_EXCLUDED.join(' · ')}</div>
+      </details>`;
   }
 
   function boardSystems(el) {
