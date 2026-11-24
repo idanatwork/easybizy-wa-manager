@@ -1545,9 +1545,9 @@
   }
 
   const FM_ST = {
-    yes: ['<span class="badge green"><span class="dot"></span>קיים בקוד', 'var(--mint-ink)'],
-    part: ['<span class="badge yellow">חלקית', 'var(--yellow)'],
-    no: ['<span class="badge">לא קיים', 'var(--muted)'],
+    yes: ['<span class="badge green"><span class="dot"></span>קיים בקוד</span>', 'var(--mint-ink)'],
+    part: ['<span class="badge yellow">חלקית</span>', 'var(--yellow)'],
+    no: ['<span class="badge">לא קיים</span>', 'var(--muted)'],
   };
   const FM_PAGES = [
     { page: 'מבט כללי', rows: [
@@ -1606,10 +1606,10 @@
   }
 
   const WP_ST = {
-    built: '<span class="badge green"><span class="dot"></span>קיים בקוד',
-    preview: '<span class="badge yellow">בתצוגה מקדימה',
-    pending: '<span class="badge">ממתין',
-    ziv: '<span class="badge blue">אצל זיו / איזיביזי',
+    built: '<span class="badge green"><span class="dot"></span>קיים בקוד</span>',
+    preview: '<span class="badge yellow">בתצוגה מקדימה</span>',
+    pending: '<span class="badge">ממתין</span>',
+    ziv: '<span class="badge blue">אצל זיו / איזיביזי</span>',
   };
   const WP_STAGES = [
     { stage: 'שלב 1 — לסגור את מה שכבר בנוי', items: [
