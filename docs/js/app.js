@@ -1037,7 +1037,13 @@
       { label: 'הוצאת פרסום החודש', value: ils(12300), delta: 'החזר 7.0 על ההוצאה', up: true },
     ],
     leadDays: [6, 8, 5, 9, 7, 4, 10, 8, 6, 11, 9, 5, 7, 9],
-    channels: [['מודעות מטא בוואטסאפ', 88], ['אורגני / וואטסאפ ישיר', 52], ['אתר', 14], ['שיחה שלא נענתה', 9], ['MedReviews', 5]],
+    channels: [
+      { name: 'מודעות מטא בוואטסאפ', n: 88, conv: '21%', cost: ils(118) },
+      { name: 'אורגני / וואטסאפ ישיר', n: 52, conv: '29%', cost: 'ללא עלות' },
+      { name: 'אתר', n: 14, conv: '29%', cost: ils(71) },
+      { name: 'שיחה שלא נענתה', n: 9, conv: '33%', cost: 'ללא עלות' },
+      { name: 'MedReviews', n: 5, conv: '20%', cost: ils(40) },
+    ],
     campaigns: [
       { name: 'פייסטייט \u2013 נשים +35 \u2013 וידאו 1', channel: 'מטא \u00B7 וואטסאפ', spend: 4200, leads: 38, booked: 12, arrived: 9, paid: 6, revenue: 31200 },
       { name: 'מורפיאוס 8 \u2013 נשים \u2013 תמונה 2', channel: 'מטא \u00B7 וואטסאפ', spend: 3100, leads: 26, booked: 8, arrived: 6, paid: 4, revenue: 15800 },
@@ -1105,8 +1111,10 @@
           <div class="chart has-tip" data-tip="מספר הלידים שנכנסו בכל אחד מ-14 הימים האחרונים" tabindex="0">${bars}</div>
           <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים ביום</span></div>
         </div>
-        <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים החודשיים לפי הערוץ שממנו הגיעו" tabindex="0"><h3>לידים לפי ערוץ \u2014 החודש</h3>
-          ${BOARD.channels.map(([name, n]) => `<div class="toplist-row">${name}<span class="n num">${n}</span></div>`).join('')}
+        <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים החודשיים לפי ערוץ; המרה = אחוז הלידים שקבעו תור, ועלות להמרה = הוצאת הערוץ חלקי קובעי התור" tabindex="0"><h3>לידים לפי ערוץ \u2014 החודש</h3>
+          ${BOARD.channels.map(ch => `<div class="toplist-row chan-row">
+            <span>${ch.name}<span class="chan-sub num">המרה ${ch.conv} · ${ch.cost} להמרה</span></span><span class="n num">${ch.n}</span>
+          </div>`).join('')}
         </div>
       </div>
       <div class="guide">חלק מהמספרים חלקיים: סטטוסי לידים מתעדכנים כרגע ידנית, ו-187 מודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</div>`;
