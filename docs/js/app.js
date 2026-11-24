@@ -87,7 +87,8 @@
           </div>
           ${CLIENT_SECTIONS.map(([k, l, ico]) => `<a class="nav-item ${clientNav.section === k ? 'active' : ''}" href="#/client/${clientNav.client.id}/${k}"><span class="ico">${ico}</span> ${l}</a>`).join('')}`
         : brand === 'clinic' ? `
-          <a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>`
+          <a class="nav-item ${active === 'board' && !location.hash.startsWith('#/board/mapping') ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>
+          <a class="nav-item ${location.hash.startsWith('#/board/mapping') ? 'active' : ''}" href="#/board/mapping"><span class="ico">⛓</span> מיפוי קיים כיום</a>`
         : `
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
           ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>` : ''}`;
