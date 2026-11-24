@@ -73,7 +73,7 @@
 
   /* active: 'clients' for the global list. clientNav: { client, section } renders
      the sidebar as that client's menu instead. */
-  function shell(active, inner, clientNav) {
+  function shell(active, inner, clientNav, brand) {
     const who = `
           <div class="who">
             ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : Api.isLoggedIn() ? `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>` : '<span class="demo-pill">תצוגת דמו</span>'}
@@ -93,12 +93,16 @@
       <div class="layout">
         <div class="topbar">
           <button class="icon-btn" id="nav-burger" title="תפריט">☰</button>
-          <span class="brand"><img class="logo" src="assets/logo-icon.png" alt="Tech Mate"> WhatsApp Manager</span>
+          ${brand === 'clinic'
+            ? '<span class="brand"><img class="logo brand-light-only" src="assets/clinic-logo-dark.png" alt="Dr. Ziv Peretz" style="width:auto;height:28px;border-radius:0"><img class="logo brand-dark-only" src="assets/clinic-logo-white.png" alt="Dr. Ziv Peretz" style="width:auto;height:28px;border-radius:0"> דשבורד ניהול</span>'
+            : '<span class="brand"><img class="logo" src="assets/logo-icon.png" alt="Tech Mate"> WhatsApp Manager</span>'}
           <button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר">◐</button>
         </div>
         <div class="nav-overlay" id="nav-overlay"></div>
         <aside class="sidebar">
-          <div class="brand column"><img class="logo-lg" src="assets/logo-icon.png" alt="Tech Mate"><span class="brand-name">WhatsApp Manager<span class="brand-sub">for EasyBizy</span></span></div>
+          ${brand === 'clinic'
+            ? '<div class="brand column"><img class="logo-lg brand-light-only" src="assets/clinic-logo-dark.png" alt="Dr. Ziv Peretz" style="width:120px;border-radius:0"><img class="logo-lg brand-dark-only" src="assets/clinic-logo-white.png" alt="Dr. Ziv Peretz" style="width:120px;border-radius:0"><span class="brand-name">דשבורד ניהול<span class="brand-sub">Dr. Ziv Peretz · Aesthetic Clinic</span></span></div>'
+            : '<div class="brand column"><img class="logo-lg" src="assets/logo-icon.png" alt="Tech Mate"><span class="brand-name">WhatsApp Manager<span class="brand-sub">for EasyBizy</span></span></div>'}
           ${nav}
           <div class="spacer"></div>
           ${who}
@@ -1055,8 +1059,8 @@
     shell('board', `
       <div class="page-head"><h1>דשבורד ניהול</h1><span class="badge yellow">נתוני דמו</span></div>
       <div class="board-tabs">${BOARD_TABS.map(([k, l]) => `<a class="board-tab ${section === k ? 'active' : ''}" href="#/board/${k}">${l}</a>`).join('')}</div>
-      <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 אין חיבור לנתוני קליניקה</div>
-      <div id="board-body"></div>`);
+      <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 נתונים לצורך הצגה בלבד, אין חיבור לנתוני הקליניקה</div>
+      <div id="board-body"></div>`, null, 'clinic');
     const body = document.getElementById('board-body');
     ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems }[section] || boardOverview)(body);
   }

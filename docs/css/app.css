@@ -316,6 +316,11 @@ pre.payload {
 .demo-pill { background: var(--yellow-soft); color: var(--yellow); font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 10px; }
 
 /* ---------- dark theme ---------- */
+/* clinic brand swap (light/dark logo variants) */
+.brand .brand-dark-only{display:none}
+[data-theme="dark"] .brand .brand-dark-only{display:block}
+[data-theme="dark"] .brand .brand-light-only{display:none}
+
 /* ---------- management board (demo) ---------- */
 .board-tabs{display:flex;gap:6px;overflow-x:auto;margin:8px 0 4px;padding-bottom:4px;scrollbar-width:none}
 .board-tabs::-webkit-scrollbar{display:none}
