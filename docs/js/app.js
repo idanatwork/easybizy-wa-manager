@@ -1087,6 +1087,62 @@
     ],
     sysErrors: 'שגיאת שליחה אחת ב-7 הימים האחרונים (whatsapp-messages.failed, אתמול)',
   };
+  const BOARD_PERIODS = [['day', 'היום'], ['week', 'השבוע'], ['month', 'החודש'], ['prevmonth', 'חודש קודם'], ['q90', '90 ימים'], ['custom', 'טווח תאריכים']];
+  const chan = (meta, organic, site, call, medrev) => [
+    { name: 'מודעות מטא בוואטסאפ', n: meta, conv: '21%', cost: ils(118) },
+    { name: 'אורגני / וואטסאפ ישיר', n: organic, conv: '29%', cost: 'ללא עלות' },
+    { name: 'אתר', n: site, conv: '29%', cost: ils(71) },
+    { name: 'שיחה שלא נענתה', n: call, conv: '33%', cost: 'ללא עלות' },
+    { name: 'MedReviews', n: medrev, conv: '20%', cost: ils(40) },
+  ];
+  BOARD.periods = {
+    day: { chartTitle: 'לידים \u2014 היום לפי שעות', leadDays: [0, 1, 0, 2, 1, 3, 2, 4, 3, 2, 5, 3, 4, 2], channels: chan(6, 4, 1, 1, 1),
+      kpis: [
+        { label: 'לידים היום', value: '9', delta: '+2 מול אתמול', up: true },
+        { label: 'תורים שנקבעו היום', value: '3', delta: '+1 מול אתמול', up: true },
+        { label: 'עסקאות נסגרו היום', value: '1', delta: 'כמו אתמול', up: true },
+        { label: 'הכנסה היום', value: ils(4200), delta: '+12% מול אתמול', up: true },
+        { label: 'הוצאת פרסום היום', value: ils(410), delta: 'החזר 10.2 על ההוצאה', up: true },
+        { label: 'פניות ממתינות למענה', value: '2', delta: 'הישנות מלפני 3 שעות', up: false },
+      ] },
+    week: { chartTitle: 'לידים \u2014 7 ימים אחרונים', leadDays: [8, 6, 11, 9, 5, 7, 9], channels: chan(48, 29, 8, 5, 3),
+      kpis: [
+        { label: 'לידים השבוע', value: '55', delta: '+6% מול שבוע קודם', up: true },
+        { label: 'תורים שנקבעו השבוע', value: '14', delta: '+3 מול שבוע קודם', up: true },
+        { label: 'עסקאות נסגרו השבוע', value: '4', delta: '\u22121 מול שבוע קודם', up: false },
+        { label: 'הכנסה השבוע', value: ils(21300), delta: '+9% מול שבוע קודם', up: true },
+        { label: 'הוצאת פרסום השבוע', value: ils(2950), delta: 'החזר 7.2 על ההוצאה', up: true },
+        { label: 'פניות ממתינות למענה', value: '2', delta: 'הישנות מלפני 3 שעות', up: false },
+      ] },
+    month: { chartTitle: 'לידים \u2014 14 ימים אחרונים', get leadDays() { return BOARD.leadDays; }, get channels() { return BOARD.channels; }, get kpis() { return BOARD.kpis; } },
+    prevmonth: { chartTitle: 'לידים \u2014 החודש הקודם', leadDays: [5, 7, 4, 8, 6, 9, 7, 5, 8, 6, 4, 7, 8, 6], channels: chan(79, 47, 12, 8, 4),
+      kpis: [
+        { label: 'לידים בחודש הקודם', value: '154', delta: 'החודש: 168 (+8%)', up: true },
+        { label: 'תורים שנקבעו', value: '39', delta: 'מול 46 החודש', up: false },
+        { label: 'עסקאות נסגרו', value: '12', delta: 'מול 11 החודש', up: true },
+        { label: 'הכנסה', value: ils(75100), delta: 'מול ' + ils(86400) + ' החודש', up: true },
+        { label: 'הוצאת פרסום', value: ils(11900), delta: 'החזר 6.3 על ההוצאה', up: true },
+        { label: 'עלות לליד', value: ils(126), delta: 'מול ' + ils(118) + ' החודש', up: true },
+      ] },
+    q90: { chartTitle: 'לידים \u2014 12 שבועות אחרונים', leadDays: [32, 38, 35, 41, 39, 44, 47, 43, 50, 46, 52, 49], channels: chan(251, 148, 39, 26, 14),
+      kpis: [
+        { label: 'לידים ב-90 ימים', value: '478', delta: '+11% מול 90 הקודמים', up: true },
+        { label: 'תורים שנקבעו', value: '131', delta: '+9%', up: true },
+        { label: 'עסקאות נסגרו', value: '34', delta: '+6%', up: true },
+        { label: 'הכנסה ב-90 ימים', value: ils(241800), delta: '+13%', up: true },
+        { label: 'הוצאת פרסום ב-90 ימים', value: ils(35400), delta: 'החזר 6.8 על ההוצאה', up: true },
+        { label: 'עלות לליד ממוצעת', value: ils(121), delta: '\u22124% שיפור', up: true },
+      ] },
+    custom: { chartTitle: 'לידים \u2014 בטווח שנבחר', leadDays: [4, 6, 3, 7, 5, 8, 6, 4, 5, 7, 3, 6, 5, 4], channels: chan(34, 21, 6, 4, 2),
+      kpis: [
+        { label: 'לידים בטווח', value: '67', delta: 'נתוני דמו', up: true },
+        { label: 'תורים שנקבעו', value: '17', delta: 'נתוני דמו', up: true },
+        { label: 'עסקאות נסגרו', value: '5', delta: 'נתוני דמו', up: true },
+        { label: 'הכנסה בטווח', value: ils(26900), delta: 'נתוני דמו', up: true },
+        { label: 'הוצאת פרסום בטווח', value: ils(3600), delta: 'החזר 7.5 על ההוצאה', up: true },
+        { label: 'עלות לליד', value: ils(105), delta: 'נתוני דמו', up: true },
+      ] },
+  };
 
   function viewBoard(section = 'overview') {
     clearInterval(state.convoTimer);
@@ -1100,24 +1156,34 @@
   }
 
   function boardOverview(el) {
-    const maxV = Math.max(...BOARD.leadDays);
-    const bars = BOARD.leadDays.map((v, i) => `<div class="bar" title="${v} לידים"><div class="runs" style="height:${Math.round(v / maxV * 100)}%"></div></div>`).join('');
+    const pk = state.boardPeriod || 'month';
+    const P = BOARD.periods[pk] || BOARD.periods.month;
+    const maxV = Math.max(...P.leadDays);
+    const bars = P.leadDays.map((v) => `<div class="bar" title="${v} לידים"><div class="runs" style="height:${Math.round(v / maxV * 100)}%"></div></div>`).join('');
+    const rangeNote = pk === 'custom' ? `<span class="range-box"><input type="date" id="rng-from" value="2026-11-01"> \u05E2\u05D3 <input type="date" id="rng-to" value="2026-11-24"></span>` : '';
     el.innerHTML = `
+      <div class="board-tabs" style="margin-top:0;flex-wrap:wrap">
+        ${BOARD_PERIODS.map(([k, l]) => `<button class="board-tab ${pk === k ? 'active' : ''}" data-period="${k}">${l}</button>`).join('')}
+        ${rangeNote}
+      </div>
       <div class="dash-grid">
-        ${BOARD.kpis.map(k => `<div class="stat has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0"><div class="s-label">${k.label}</div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div></div>`).join('')}
+        ${P.kpis.map(k => `<div class="stat has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0"><div class="s-label">${k.label}</div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div></div>`).join('')}
       </div>
       <div class="dash-2col">
-        <div class="card" style="margin:0"><h3>לידים \u2014 14 ימים אחרונים</h3>
-          <div class="chart has-tip" data-tip="מספר הלידים שנכנסו בכל אחד מ-14 הימים האחרונים" tabindex="0">${bars}</div>
-          <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים ביום</span></div>
+        <div class="card" style="margin:0"><h3>${P.chartTitle}</h3>
+          <div class="chart has-tip" data-tip="מספר הלידים שנכנסו בכל יחידת זמן בתקופה הנבחרת" tabindex="0">${bars}</div>
+          <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים</span></div>
         </div>
-        <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים החודשיים לפי ערוץ; המרה = אחוז הלידים שקבעו תור, ועלות להמרה = הוצאת הערוץ חלקי קובעי התור" tabindex="0"><h3>לידים לפי ערוץ \u2014 החודש</h3>
-          ${BOARD.channels.map(ch => `<div class="toplist-row chan-row">
+        <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים לפי ערוץ בתקופה הנבחרת; המרה = אחוז הלידים שקבעו תור, ועלות להמרה = הוצאת הערוץ חלקי קובעי התור" tabindex="0"><h3>לידים לפי ערוץ</h3>
+          ${P.channels.map(ch => `<div class="toplist-row chan-row">
             <span>${ch.name}<span class="chan-sub num">המרה ${ch.conv} · ${ch.cost} להמרה</span></span><span class="n num">${ch.n}</span>
           </div>`).join('')}
         </div>
       </div>
       <div class="guide">חלק מהמספרים חלקיים: סטטוסי לידים מתעדכנים כרגע ידנית, ו-187 מודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</div>`;
+    el.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { state.boardPeriod = b.dataset.period; boardOverview(el); });
+    const rf = document.getElementById('rng-from'), rt = document.getElementById('rng-to');
+    if (rf) rf.onchange = rt.onchange = () => boardOverview(el);
   }
 
   function boardCampaigns(el) {
