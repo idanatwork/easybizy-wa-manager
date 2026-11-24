@@ -2,14 +2,14 @@
 :root {
   --green: #4a1b66;
   --green-dark: #34104a;
-  --green-soft: #f0e7f8;
+  --green-soft: #eceef2;
   --mint: #98f8d0;
   --mint-soft: #d8f8eb;
   --mint-ink: #0b4a33;
-  --ink: #1d1526;
-  --muted: #6b6478;
-  --line: #e7e2f0;
-  --bg: #f6f4fa;
+  --ink: #1d2026;
+  --muted: #656b76;
+  --line: #e3e5e9;
+  --bg: #f5f6f8;
   --card: #ffffff;
   --red: #d92d20;
   --red-soft: #feeceb;
@@ -379,15 +379,15 @@ pre.payload {
 [data-theme="dark"] {
   --green: #7feec3;
   --green-dark: #b5f7db;
-  --green-soft: #2c1a44;
+  --green-soft: #22302a;
   --mint-soft: #1e3a31;
   --mint-ink: #98f8d0;
-  --ink: #efe9f8;
-  --muted: #a491be;
-  --line: #3b2452;
-  --bg: #150a21;
-  --card: #20102f;
-  --gray-soft: #2c1a42;
+  --ink: #eceef2;
+  --muted: #9aa1ac;
+  --line: #2b3038;
+  --bg: #0f1114;
+  --card: #191c21;
+  --gray-soft: #24282e;
   --red-soft: #3b1a17;
   --yellow-soft: #3a2c12;
   --blue-soft: #12283f;
@@ -407,7 +407,7 @@ pre.payload {
 [data-theme="dark"] .btn.secondary,
 [data-theme="dark"] .btn.danger { background: var(--card); color: var(--ink); }
 [data-theme="dark"] .btn:not(.secondary):not(.danger):not(.ghost) { color: #22103a; }
-[data-theme="dark"] .login-wrap { background: linear-gradient(160deg, #1b0d2b, #150a21 60%); }
+[data-theme="dark"] .login-wrap { background: linear-gradient(160deg, #12151a, #0c0e11 60%); }
 [data-theme="dark"] .btn.secondary:hover,
 [data-theme="dark"] .tbl tbody tr:hover,
 [data-theme="dark"] .convo-item:hover,
@@ -417,10 +417,10 @@ pre.payload {
 [data-theme="dark"] .convo-search,
 [data-theme="dark"] .convo-list { background: var(--card); }
 [data-theme="dark"] .chat-head,
-[data-theme="dark"] .chat-input { background: #2c1a42; }
-[data-theme="dark"] .chat-body { background: #150a21; }
+[data-theme="dark"] .chat-input { background: #24282e; }
+[data-theme="dark"] .chat-body { background: #0f1114; }
 [data-theme="dark"] .bubble { background: #202c33; color: var(--ink); }
-[data-theme="dark"] .bubble.out { background: #3c1454; color: #efe9f8; }
+[data-theme="dark"] .bubble.out { background: #2b3a42; color: #eceef2; }
 [data-theme="dark"] .bubble .b-footer,
 [data-theme="dark"] .bubble .meta { color: #8696a0; }
 [data-theme="dark"] .phone { background: #0b141a; }
