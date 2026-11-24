@@ -1313,9 +1313,9 @@
         if (i) {
           const ex = cx + wt / 2 + 10, py = y - gap / 2;
           o += `<line x1="${ex}" y1="${py}" x2="610" y2="${py}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/><circle cx="${ex}" cy="${py}" r="3" class="ft"/>
-          <rect x="610" y="${py - 15}" width="170" height="30" rx="15" class="fchip"/>
-          <text x="626" y="${py + 4.5}" class="ftg" font-size="13" font-weight="700">${conv(i)}</text>
-          <text x="686" y="${py + 4.5}" class="ftr" font-size="11.5">−${lost(i)} ירדו</text>`;
+          <rect x="610" y="${py - 17}" width="180" height="34" rx="17" class="fchip"/>
+          <text x="628" y="${py + 6}" class="ftg" font-size="17" font-weight="800">${conv(i)}</text>
+          <text x="692" y="${py + 5}" class="ftr" font-size="13">−${lost(i)} ירדו</text>`;
         }
       });
       return o + '</svg>';
@@ -1346,7 +1346,7 @@
         <line x1="${cx}" y1="${y}" x2="560" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
         <text x="575" y="${y - 2}" font-size="12" font-weight="700" fill="${FCOL[i][0]}">${nm}</text>
         <text x="575" y="${y + 20}" class="ft" font-size="19" font-weight="700">${v}</text>
-        <text x="760" y="${y + 19}" class="ftg" font-size="13" font-weight="700">${i ? conv(i) : ''}</text>`;
+        <text x="760" y="${y + 21}" class="ftg" font-size="17" font-weight="800">${i ? conv(i) : ''}</text>`;
       });
       return o + '</svg>';
     }
@@ -1367,8 +1367,8 @@
     for (let i = 0; i < N - 1; i++) {
       const x1 = xs[i], x2 = xs[i + 1] + nw, m = (x1 + x2) / 2, a = hs[i] / 2, b = hs[i + 1] / 2;
       o += `<path fill="url(#${uid}h${i})" fill-opacity=".55" d="M${x1},${cy - a} C${m},${cy - a} ${m},${cy - b} ${x2},${cy - b} L${x2},${cy + b} C${m},${cy + b} ${m},${cy + a} ${x1},${cy + a} Z"/>
-      <text x="${m}" y="${H - 30}" text-anchor="middle" class="ftg" font-size="15" font-weight="700">${conv(i + 1)}</text>
-      <text x="${m}" y="${H - 11}" text-anchor="middle" class="ftr" font-size="11">−${lost(i + 1)} ירדו</text>`;
+      <text x="${m}" y="${H - 32}" text-anchor="middle" class="ftg" font-size="19" font-weight="800">${conv(i + 1)}</text>
+      <text x="${m}" y="${H - 10}" text-anchor="middle" class="ftr" font-size="12.5">−${lost(i + 1)} ירדו</text>`;
     }
     stages.forEach(([nm, v], i) => {
       const x = xs[i], tp = cy - hs[i] / 2;
@@ -1381,16 +1381,26 @@
 
   function boardFunnel(el) {
     const urlFl = new URLSearchParams(location.search).get('fl');
-    const cur = urlFl || state.funnelLayout || localStorage.getItem('wa-funnel-layout') || '1';
+    const legacy = localStorage.getItem('wa-funnel-layout');
+    if (legacy && !localStorage.getItem('wa-funnel-default')) { localStorage.setItem('wa-funnel-default', legacy); localStorage.removeItem('wa-funnel-layout'); }
+    const savedDef = localStorage.getItem('wa-funnel-default') || '1';
+    const cur = urlFl || state.funnelLayout || savedDef;
+    const setDef = localStorage.getItem('wa-funnel-setdef') === '1';
     el.innerHTML = `
-      <div class="board-tabs" style="margin-top:0;flex-wrap:wrap">
+      <div class="board-tabs" style="margin-top:0;flex-wrap:wrap;align-items:center">
         ${FN_LAYOUTS.map(([k, l]) => `<button class="board-tab ${cur === k ? 'active' : ''}" data-fl="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
+        <label class="fn-def"><input type="checkbox" id="fn-def" ${setDef ? 'checked' : ''}> קבע כברירת מחדל</label>
       </div>
       <div class="dash-2col">${BOARD.campaigns.slice(0, 2).map((c, ci) => `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>${fnRender(cur, c, ci)}${fnChips([['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]])}</div>`).join('')}</div>
       <div class="cell-sub" style="margin-top:10px">בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
+    const defBox = el.querySelector('#fn-def');
+    defBox.onchange = () => {
+      localStorage.setItem('wa-funnel-setdef', defBox.checked ? '1' : '0');
+      if (defBox.checked) localStorage.setItem('wa-funnel-default', state.funnelLayout || cur);
+    };
     el.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => {
       state.funnelLayout = b.dataset.fl;
-      localStorage.setItem('wa-funnel-layout', b.dataset.fl);
+      if (defBox.checked) localStorage.setItem('wa-funnel-default', b.dataset.fl);
       boardFunnel(el);
     });
   }
