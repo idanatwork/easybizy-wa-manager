@@ -87,8 +87,10 @@
           </div>
           ${CLIENT_SECTIONS.map(([k, l, ico]) => `<a class="nav-item ${clientNav.section === k ? 'active' : ''}" href="#/client/${clientNav.client.id}/${k}"><span class="ico">${ico}</span> ${l}</a>`).join('')}`
         : brand === 'clinic' ? `
-          <a class="nav-item ${active === 'board' && !location.hash.startsWith('#/board/mapping') ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>
-          <a class="nav-item ${location.hash.startsWith('#/board/mapping') ? 'active' : ''}" href="#/board/mapping"><span class="ico">⛓</span> מיפוי קיים כיום</a>`
+          <a class="nav-item ${active === 'board' && !/#\/board\/(mapping|fieldmap|workplan)/.test(location.hash) ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>
+          <a class="nav-item ${location.hash.startsWith('#/board/mapping') ? 'active' : ''}" href="#/board/mapping"><span class="ico">⛓</span> מיפוי קיים כיום</a>
+          <a class="nav-item ${location.hash.startsWith('#/board/fieldmap') ? 'active' : ''}" href="#/board/fieldmap"><span class="ico">▤</span> מיפוי שדות הדשבורד</a>
+          <a class="nav-item ${location.hash.startsWith('#/board/workplan') ? 'active' : ''}" href="#/board/workplan"><span class="ico">▦</span> משימות להמשך (מהאפיון)</a>`
         : `
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
           ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>` : ''}`;
@@ -1020,7 +1022,6 @@
   const BOARD_TABS = [
     ['overview', 'מבט כללי'], ['campaigns', 'קמפיינים'], ['funnel', 'משפך'],
     ['attention', 'דורשים טיפול'], ['messages', 'הודעות אוטומטיות'], ['systems', 'מצב המערכות'],
-    ['mapping', 'מיפוי קיים כיום'],
   ];
   const ils = (n) => '\u20AA' + n.toLocaleString('he-IL');
   const TIP = {
@@ -1175,7 +1176,7 @@
       <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 נתונים לצורך הצגה בלבד, אין חיבור לנתוני הקליניקה</div>
       <div id="board-body"></div>`, null, 'clinic');
     const body = document.getElementById('board-body');
-    ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems, mapping: boardMapping }[section] || boardOverview)(body);
+    ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems, mapping: boardMapping, fieldmap: boardFieldMap, workplan: boardWorkPlan }[section] || boardOverview)(body);
   }
 
   function boardOverview(el) {
@@ -1541,6 +1542,132 @@
       <details class="att-list card" style="margin:0"><summary><span class="att-title">לא נכללו במיפוי</span><span class="badge">${MAP_EXCLUDED.length} מערכות</span><span class="att-caret">◂</span></summary>
         <div class="cell-sub" style="margin:6px 16px 12px">למערכות אלה אין webhook שמגיע מאיזיביזי, ולכן הן מחוץ למיפוי לפי ההגדרה: ${MAP_EXCLUDED.join(' · ')}</div>
       </details>`;
+  }
+
+  const FM_ST = {
+    yes: ['<span class="badge green"><span class="dot"></span>קיים בקוד', 'var(--mint-ink)'],
+    part: ['<span class="badge yellow">חלקית', 'var(--yellow)'],
+    no: ['<span class="badge">לא קיים', 'var(--muted)'],
+  };
+  const FM_PAGES = [
+    { page: 'מבט כללי', rows: [
+      ['לידים (היום / השבוע / החודש)', 'איזיביזי API — רשימת לידים', 'yes', 'אינדקס לידים (campaign_sync) + dash_feed'],
+      ['גרף לידים 14 ימים', 'איזיביזי API — תאריכי יצירת לידים', 'yes', 'dash_feed'],
+      ['לידים לפי ערוץ (דונאט)', 'תיוג מקור בלידים באיזיביזי', 'part', 'מטא (campaign_sync) ואתר (source_tags + site_wa_ref) קיימים; אורגני מחושב כ"ללא תג"; שיחה/MedReviews תלויים בתיוג קיים באיזיביזי'],
+      ['הוצאת פרסום', 'Meta Marketing API — insights', 'yes', 'dash_feed + revenue_report (ללא מע"מ)'],
+      ['הכנסה בטווח', 'איזיביזי API — מסמכים משלמים (קבלה/חשבונית-קבלה)', 'yes', 'revenue_report'],
+      ['החזר על ההוצאה / עלות לליד / עלות להמרה', 'נגזר מהשדות שמעל', 'yes', 'חישוב בדשבורד'],
+      ['אחוז המרה לערוץ', 'נגזר: לידים ← תורים שנקבעו', 'part', 'דורש קריאת תורים לפי ליד — לא נאספת היום'],
+      ['תורים שנקבעו / עסקאות נסגרו', 'איזיביזי API — תורים + מסמכים', 'part', 'booking_sync קורא אותם (לסנכרון Optione) אבל לא צובר ספירות לדשבורד'],
+    ]},
+    { page: 'קמפיינים', rows: [
+      ['הוצאה / הכנסה / החזר לקמפיין', 'Meta API + איזיביזי מסמכים (שיוך לפי תג קמפיין)', 'yes', 'revenue_report + dash_feed'],
+      ['לידים לקמפיין', 'איזיביזי — לידים עם תג "[מטא:id]"', 'yes', 'אינדקס לידים (campaign_sync)'],
+      ['קבעו תור / הגיעו לקמפיין', 'איזיביזי API — תורים של לידים מתויגים + סטטוס תור', 'part', 'ניתן להביא; לא נאסף היום'],
+      ['שילמו / עלות למטופל משלם', 'איזיביזי מסמכים + נגזר', 'yes', 'revenue_report'],
+      ['גרף התקדמות לידים', 'שילוב לידים + תורים + מסמכים', 'part', 'לידים ושילמו קיימים; תורים חסרים'],
+    ]},
+    { page: 'משפך', rows: [
+      ['שלבי המשפך לקמפיין (לידים ← קבעו ← הגיעו ← שילמו)', 'כמו בדף קמפיינים', 'part', 'לידים + שילמו קיימים; קבעו/הגיעו דורשים קריאת תורים'],
+    ]},
+    { page: 'דורשים טיפול', rows: [
+      ['דגלים: בקשת הסרה / חזרו אליי / לא עכשיו', 'נתוני ה-webhook (ניתוח טקסט)', 'yes', 'easybizy_webhook (ConvStore)'],
+      ['זמן מענה ראשון לפנייה', 'נתוני ה-webhook', 'yes', 'dash_feed'],
+      ['רשימת לידים/מטופלים עם שם וטלפון', 'איזיביזי API — קריאה ישירה בזמן אמת', 'no', 'השרת לא שומר פרטי מטופלים (מדיניות); הדשבורד יקרא ישירות מאיזיביזי'],
+    ]},
+    { page: 'הודעות אוטומטיות', rows: [
+      ['נשלחו', 'איזיביזי API — קמפיינים/שליחות', 'part', 'לפולואפ של השרת יש יומן שליחות; קמפיינים של איזיביזי דורשים API'],
+      ['ענו', 'נתוני ה-webhook', 'yes', 'easybizy_webhook (ConvStore)'],
+      ['קבעו תור אחרי שליחה', 'נגזר: webhook + תורים', 'part', 'דורש קריאת תורים'],
+      ['ביקשו הסרה', 'נתוני ה-webhook (דגל stop)', 'yes', 'easybizy_webhook'],
+      ['עלות שליחה', 'איזיביזי / ספק וואטסאפ', 'no', 'אין מקור בקוד היום'],
+    ]},
+    { page: 'מצב המערכות', rows: [
+      ['סטטוסי מערכות ותקלות', 'לוגים פנימיים של השרת', 'part', 'server_report (status_daily + צ\u2019קים) קיים בלוג; דורש חשיפה לדשבורד'],
+    ]},
+  ];
+
+  function boardFieldMap(el) {
+    const all = FM_PAGES.flatMap(p => p.rows);
+    const cnt = (st) => all.filter(r => r[2] === st).length;
+    const rowHtml = (r) => `<div class="map-row fm-row">
+      <div class="map-cell"><b>${r[0]}</b></div>
+      <div class="map-cell"><div class="map-lbl">מקור אפשרי</div><span class="map-sub">${r[1]}</span></div>
+      <div class="map-meta">${FM_ST[r[2]][0]}<span class="map-sub" style="text-align:left;max-width:340px">${r[3]}</span></div>
+    </div>`;
+    el.innerHTML = `
+      <div class="att-counters c3">
+        <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">${cnt('yes')}</div><div class="ac-label">קיימים בקוד השרת</div></div>
+        <div class="att-counter" style="--ac:var(--yellow)"><div class="ac-num num">${cnt('part')}</div><div class="ac-label">חלקית / דורשים הרחבה</div></div>
+        <div class="att-counter" style="--ac:var(--muted)"><div class="ac-num num">${cnt('no')}</div><div class="ac-label">לא קיימים</div></div>
+      </div>
+      <div class="alert-strip" style="margin-bottom:12px"><span class="as-ico">ℹ</span><span>לכל שדה בדשבורד: מאיפה אפשר להביא את הנתון, והאם השרת כבר קורא או מפיק אותו <b>לפי קוד ה-Git</b> (24.11.2026). העמודה "קיים" משקפת את הקוד בלבד — ${'טרם אומת מול Render'}.</span></div>
+      ${FM_PAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.page}</h3>${pg.rows.map(rowHtml).join('')}</div>`).join('')}`;
+  }
+
+  const WP_ST = {
+    built: '<span class="badge green"><span class="dot"></span>קיים בקוד',
+    preview: '<span class="badge yellow">בתצוגה מקדימה',
+    pending: '<span class="badge">ממתין',
+    ziv: '<span class="badge blue">אצל זיו / איזיביזי',
+  };
+  const WP_STAGES = [
+    { stage: 'שלב 1 — לסגור את מה שכבר בנוי', items: [
+      ['שיוך כפתור הוואטסאפ של האתר לאיזיביזי (תגית והערה)', 'built', 'site_wa_ref.py — תצוגה מקדימה; נדרש אימות מול Render והפעלה'],
+      ['זיהוי בקשות שינוי תור — מעבר מתצוגה מקדימה לפעולה', 'preview', 'appt_confirm.py; אחרי בדיקת יומנים מחליפים מצב ל-apply'],
+      ['טופס בדיקה מהאתר ממספר חדש + אימות הטריגר', 'pending', 'בדיקה ידנית; לא דורש קוד חדש'],
+      ['קוד תוסף האתר והבדיקות למאגר git', 'pending', 'לרכז במאגר (כיום מחוץ ל-git)'],
+      ['בדיקת יעדי "CF7 to Webhook"', 'pending', 'בדיקה מול הגדרות היעד'],
+      ['מסרון מבנה המודעות מזיו לדור + יישום בקמפיינים חדשים', 'ziv', 'משימה של זיו'],
+      ['כיבוי "ליד נכנס מאתר" באופטיוואן', 'ziv', 'הגדרה באופטיוואן'],
+    ]},
+    { stage: 'שלב 2 — סטטוסים', items: [
+      ['מודול הסטטוסים בתצוגה מקדימה', 'preview', 'status_moves.py קיים; קובע סטטוס ורושם בלבד'],
+      ['שבוע השוואה בין הסטטוס האוטומטי לסטטוס בפועל + אישור זיו', 'pending', 'ריצת השוואה שבועית'],
+      ['מעבר לכתיבה אמיתית', 'pending', 'החלפת מצב ל-apply אחרי האישור'],
+      ['בירור שאלות מול ה-API של איזיביזי (עדכון סטטוס, סימון הגעה, קישור ליד-לקוח)', 'ziv', 'בירור מול דניאל'],
+    ]},
+    { stage: 'שלב 3 — הודעות לפי סטטוס', note: 'נבנה בשרת רק אם איזיביזי לא תכסה — לברר עם דניאל מה כולל הקמפיין האוטומטי לפי סטטוס ומתי הוא מגיע', items: [
+      ['מודול ההודעות בתצוגה מקדימה (תזמון, ביטולים, מכסות, הסרה)', 'preview', 'status_auto.py קיים כ-preview; ממתין להחלטה מול איזיביזי'],
+      ['אישור זיו לטבלת הכללים והנוסחים + בדיקת עורך דין', 'ziv', 'נוסחים בדף 14-15 של האפיון'],
+      ['ארבע תבניות עם כפתורים — שליחה לאישור מטא', 'pending', 'ניסוח ופתיחת תבניות'],
+      ['הפעלה כלל אחר כלל + כיבוי פולו-אפ 48 שעות באופטיוואן', 'pending', 'אחרי אישור התבניות'],
+      ['דוח שבועי לכל נוסח', 'pending', 'מודול דוח חדש'],
+    ]},
+    { stage: 'שלב 4 — השלמת השיוך וההכנסה', items: [
+      ['דוח הכנסה חודשי לפי ערוץ וקמפיין', 'built', 'revenue_report.py'],
+      ['לידים מאינסטגרם לאיזיביזי עם מקור', 'built', 'ig_intake.py + תגית "אינסטגרם"'],
+      ['מיפוי 187 המודעות + אימות פרמטרי utm', 'pending', 'מיפוי שמות לכל המודעות הפעילות'],
+      ['דיווח המרות למטא (Conversions API)', 'pending', 'דורש אישור מפורש של זיו + אסימון ממנהל האירועים; רק אחרי שהסטטוסים עובדים ונבדקו'],
+    ]},
+    { stage: 'שלב 5 — מתקדם', items: [
+      ['תבניות עם תמונה לפי טיפול + השוואת נוסחים', 'pending', 'אחרי שלב 3'],
+      ['הצעת תשובה למזכירה לפי השיחה, לאישור בלחיצה', 'pending', 'מודול חדש'],
+      ['המרות לא מקוונות לגוגל אדס', 'pending', 'התוסף כבר שומר את מזהה הקליק ב-UTM; נדרשת העלאת המרות לגוגל'],
+    ]},
+    { stage: 'שלב 6 — דשבורד ניהול (הדמו הזה)', items: [
+      ['מסכי מבט כללי, קמפיינים, משפך, דורשים טיפול, הודעות, מצב מערכות', 'preview', 'קיימים כדמו בדף הזה; ראו "מיפוי שדות הדשבורד" למקורות הנתונים'],
+      ['חיבור קריאה-בלבד להוצאות הפרסום במטא ובגוגל אדס', 'pending', 'מטא נקרא כבר ב-revenue_report; גוגל אדס דורש חיבור API'],
+      ['התחברות והרשאות + בדיקה בטלפון', 'pending', 'הדמו פתוח בכוונה; בגרסת הייצור נדרש לוגין'],
+    ]},
+  ];
+
+  function boardWorkPlan(el) {
+    const all = WP_STAGES.flatMap(p => p.items);
+    const cnt = (st) => all.filter(r => r[1] === st).length;
+    const rowHtml = (r) => `<div class="map-row wp-row">
+      <div class="map-cell"><b>${r[0]}</b></div>
+      <div class="map-meta">${WP_ST[r[1]]}<span class="map-sub" style="text-align:left;max-width:340px">${r[2]}</span></div>
+    </div>`;
+    el.innerHTML = `
+      <div class="att-counters c4">
+        <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">${cnt('built')}</div><div class="ac-label">קיימים בקוד</div></div>
+        <div class="att-counter" style="--ac:var(--yellow)"><div class="ac-num num">${cnt('preview')}</div><div class="ac-label">בתצוגה מקדימה</div></div>
+        <div class="att-counter" style="--ac:var(--orange)"><div class="ac-num num">${cnt('pending')}</div><div class="ac-label">ממתינים</div></div>
+        <div class="att-counter" style="--ac:var(--ac-blue)"><div class="ac-num num">${cnt('ziv')}</div><div class="ac-label">אצל זיו / איזיביזי</div></div>
+      </div>
+      <div class="alert-strip" style="margin-bottom:12px"><span class="as-ico">ℹ</span><span>לפי מסמך האפיון של הקליניקה ("מסמך מערכת מלא", 14.11.2026), בהשוואה לקוד ה-Git (24.11.2026) — <b>טרם אומת מול Render</b>. הכלל המנחה באפיון: מה שאיזיביזי יכולה לעשות בעצמה עדיף על פתרון בשרת.</span></div>
+      ${WP_STAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.stage}</h3>${pg.note ? `<div class="cell-sub" style="margin:0 16px 10px">${pg.note}</div>` : ''}${pg.items.map(rowHtml).join('')}</div>`).join('')}`;
   }
 
   function boardSystems(el) {

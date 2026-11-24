@@ -583,6 +583,8 @@ button.board-tab{border:1px solid var(--line);background:var(--card);cursor:poin
 /* responsive grid classes (replace inline column overrides) */
 .att-counters.c6{grid-template-columns:repeat(6,1fr)}
 .att-counters.c3{grid-template-columns:repeat(3,1fr)}
+.att-counters.c4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:900px){.att-counters.c4{grid-template-columns:repeat(2,1fr)}}
 .msg-stats.c4{grid-template-columns:repeat(4,1fr)}
 @media (max-width:760px){
   .att-counters.c6{grid-template-columns:repeat(2,1fr)}
@@ -709,3 +711,8 @@ svg{width:100%;height:auto;display:block;overflow:visible}
   .map-arrow{display:none}
   .map-meta{flex-direction:row;flex-wrap:wrap;align-items:center}
 }
+
+/* field map page */
+.fm-row{grid-template-columns:1fr 1.2fr auto}
+.wp-row{grid-template-columns:1.4fr auto}
+@media (max-width:640px){.fm-row,.wp-row{grid-template-columns:1fr}}
