@@ -7,7 +7,7 @@ let done = 0, total = pages.length * widths.length;
 function measure(page, w) {
   const f = document.createElement('iframe');
   f.style.cssText = `width:${w}px;height:700px;border:0;position:absolute;left:-2000px;top:0`;
-  f.src = '/index.html#/board/' + page;
+  f.src = 'index.html#/board/' + page;
   f.onload = () => setTimeout(() => {
     try {
       const d = f.contentDocument, win = f.contentWindow;
