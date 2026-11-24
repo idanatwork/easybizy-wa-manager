@@ -1223,8 +1223,55 @@
     if (rf) rf.onchange = rt.onchange = () => boardOverview(el);
   }
 
+  const HB_LAYOUTS = [['1', 'שם מלא + שארית דקה'], ['2', 'מספרים בפנים'], ['3', 'כרטיסי קמפיין'], ['4', 'אורך לפי נפח']];
+
+  function hbRender(layout) {
+    const cs = BOARD.campaigns;
+    const legend = `<div class="chart-legend"><span><span class="dotk" style="background:var(--hb-paid)"></span>שילמו</span><span><span class="dotk" style="background:var(--hb-arr)"></span>הגיעו</span><span><span class="dotk" style="background:var(--hb-book)"></span>קבעו תור</span><span><span class="dotk" style="background:var(--hb-ghost-line)"></span>לא קבעו תור</span></div>`;
+    const segsT = (c) => {
+      let o = '';
+      [[c.paid, 'var(--hb-paid)'], [c.arrived - c.paid, 'var(--hb-arr)'], [c.booked - c.arrived, 'var(--hb-book)']].forEach(([n, col]) => {
+        if (n > 0) o += `<span class="hb-seg" style="width:${n / c.leads * 100}%;background:${col}"></span>`;
+      });
+      if (c.leads - c.booked > 0) o += `<span class="hb-seg hb-thin" style="width:${(c.leads - c.booked) / c.leads * 100}%"></span>`;
+      return o;
+    };
+    const valsLine = (c) => `<div class="hb1vals"><span class="v" style="color:var(--hbt-paid)">${c.paid}</span><span class="l">שילמו</span> · <span class="v" style="color:var(--hbt-arr)">${c.arrived}</span><span class="l">הגיעו</span> · <span class="v" style="color:var(--hbt-book)">${c.booked}</span><span class="l">קבעו</span> · <span class="v" style="color:var(--muted)">${c.leads - c.booked}</span><span class="l">לא קבעו</span></div>`;
+    if (layout === '2') {
+      const seg2 = (n, leads, col, tc) => n <= 0 ? '' : `<span class="hb-seg hb2seg" style="width:${n / leads * 100}%;background:${col};color:${tc}">${n / leads * 100 >= 7 ? `<i>${n}</i>` : ''}</span>`;
+      return cs.map(c => `<div class="hb2r">
+        <span class="hb2nm">${c.name}</span>
+        <span class="hb2bar">${seg2(c.paid, c.leads, 'var(--hb-paid)', '#fff')}${seg2(c.arrived - c.paid, c.leads, 'var(--hb-arr)', '#14532d')}${seg2(c.booked - c.arrived, c.leads, 'var(--hb-book)', '#713f12')}<span class="hb-seg hb2ghost" style="width:${(c.leads - c.booked) / c.leads * 100}%"></span></span>
+        <b class="num hb2conv">${Math.round(c.paid / c.leads * 100)}%</b>
+      </div>`).join('') + legend;
+    }
+    if (layout === '3') {
+      return `<div class="hb3grid">` + cs.map(c => `<div class="hb3c">
+        <div class="hb3nm">${c.name}</div>
+        <div class="hb3top"><b class="num">${c.leads}</b><span class="hb3l">לידים</span><span class="num hb3conv">${Math.round(c.paid / c.leads * 100)}% שילמו</span></div>
+        <div class="hb3bar">${segsT(c)}</div>
+        <div class="hb3chips"><span style="color:var(--hbt-book)">קבעו ${c.booked}</span><span style="color:var(--hbt-arr)">הגיעו ${c.arrived}</span><span style="color:var(--hbt-paid)">שילמו ${c.paid}</span></div>
+      </div>`).join('') + `</div>`;
+    }
+    if (layout === '4') {
+      const mx = Math.max(...cs.map(c => c.leads));
+      return cs.map(c => `<div class="hb1r">
+        <div class="hb1top"><span class="hb1nm">${c.name}</span><b class="num hb1tot">${c.leads}</b></div>
+        <div class="hb4wrap"><span class="hb4bar" style="width:${c.leads / mx * 100}%">${segsT(c)}</span></div>
+      </div>`).join('') + legend;
+    }
+    return cs.map(c => `<div class="hb1r">
+      <div class="hb1top"><span class="hb1nm">${c.name}</span><b class="num hb1tot">${c.leads} לידים</b></div>
+      <div class="hb1bar">${segsT(c)}</div>
+      ${valsLine(c)}
+    </div>`).join('') + legend;
+  }
+
   function boardCampaigns(el) {
     const sum = (f) => BOARD.campaigns.reduce((a, c) => a + c[f], 0);
+    const urlHb = new URLSearchParams(location.search).get('hb');
+    const curHb = urlHb || state.hbarLayout || localStorage.getItem('wa-hbar-default') || '1';
+    const hbSetDef = localStorage.getItem('wa-hbar-setdef') === '1';
     const totals = { spend: sum('spend'), leads: sum('leads'), booked: sum('booked'), paid: sum('paid'), revenue: sum('revenue') };
     const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
       <div class="ac-num num">${value}</div><div class="ac-label">${label}<span class="info-i">i</span></div></div>`;
@@ -1244,15 +1291,9 @@
         ${counter('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', '\u00D7' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
       </div>
       <div class="card" style="margin:0 0 12px"><h3>התקדמות לידים לפי קמפיין</h3>
-        ${BOARD.campaigns.map(c => {
-          const seg = (n, col) => n > 0 ? `<span style="width:${n / c.leads * 100}%;background:${col}"></span>` : '';
-          return `<div class="hbar-row has-tip" data-tip="${c.name}: ${c.leads} לידים · ${c.booked} קבעו תור · ${c.arrived} הגיעו · ${c.paid} שילמו" tabindex="0">
-            <span class="hbar-name">${c.name}</span>
-            <span class="hbar-track">${seg(c.paid, 'var(--hb-paid)')}${seg(c.arrived - c.paid, 'var(--hb-arr)')}${seg(c.booked - c.arrived, 'var(--hb-book)')}${seg(c.leads - c.booked, 'var(--hb-none)')}</span>
-            <b class="hbar-n num">${c.leads}</b>
-          </div>`;
-        }).join('')}
-        <div class="chart-legend"><span><span class="dotk" style="background:var(--hb-paid)"></span>שילמו</span><span><span class="dotk" style="background:var(--hb-arr)"></span>הגיעו</span><span><span class="dotk" style="background:var(--hb-book)"></span>קבעו תור</span><span><span class="dotk" style="background:var(--hb-none)"></span>לא קבעו תור</span></div>
+        <div class="board-tabs hb-tabs">${HB_LAYOUTS.map(([k, l]) => `<button class="board-tab ${curHb === k ? 'active' : ''}" data-hb="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
+          <label class="fn-def"><input type="checkbox" id="hb-def" ${hbSetDef ? 'checked' : ''}> קבע כברירת מחדל</label></div>
+        <div id="hb-body">${hbRender(curHb)}</div>
       </div>
       ${BOARD.campaigns.map(c => {
         const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '\u2014';
@@ -1277,6 +1318,16 @@
           <div class="cell-sub" style="margin:0 16px 12px">\u05E2\u05DC\u05D5\u05EA \u05DC\u05DE\u05D8\u05D5\u05E4\u05DC \u05DE\u05E9\u05DC\u05DD: ${cpp}</div>
         </details>`;
       }).join('')}`;
+    const hbBox = el.querySelector('#hb-def');
+    hbBox.onchange = () => {
+      localStorage.setItem('wa-hbar-setdef', hbBox.checked ? '1' : '0');
+      if (hbBox.checked) localStorage.setItem('wa-hbar-default', state.hbarLayout || curHb);
+    };
+    el.querySelectorAll('[data-hb]').forEach(b => b.onclick = () => {
+      state.hbarLayout = b.dataset.hb;
+      if (hbBox.checked) localStorage.setItem('wa-hbar-default', b.dataset.hb);
+      boardCampaigns(el);
+    });
   }
 
   const FCOL = [['var(--fc0a)', 'var(--fc0b)'], ['var(--fc1a)', 'var(--fc1b)'], ['var(--fc2a)', 'var(--fc2b)'], ['var(--fc3a)', 'var(--fc3b)']];
