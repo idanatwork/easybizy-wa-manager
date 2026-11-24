@@ -86,6 +86,8 @@
             ${statusBadge(clientNav.client.connection_status)}
           </div>
           ${CLIENT_SECTIONS.map(([k, l, ico]) => `<a class="nav-item ${clientNav.section === k ? 'active' : ''}" href="#/client/${clientNav.client.id}/${k}"><span class="ico">${ico}</span> ${l}</a>`).join('')}`
+        : brand === 'clinic' ? `
+          <a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>`
         : `
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
           ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>` : ''}`;
@@ -998,6 +1000,32 @@
     ['attention', 'דורשים טיפול'], ['messages', 'הודעות אוטומטיות'], ['systems', 'מצב המערכות'],
   ];
   const ils = (n) => '\u20AA' + n.toLocaleString('he-IL');
+  const TIP = {
+    'לידים היום': 'פניות חדשות שנכנסו היום מכל הערוצים',
+    'לידים החודש': 'סך הפניות החדשות מה-1 בחודש; האחוז משווה לחודש הקודם',
+    'תורים שנקבעו השבוע': 'כמה לידים קבעו תור השבוע',
+    'עסקאות נסגרו החודש': 'כמה מטופלים שילמו החודש',
+    'הכנסה החודש': 'סך התשלומים שהתקבלו החודש ממטופלים ששויכו ללידים',
+    'הוצאת פרסום החודש': 'סך ההוצאה על מודעות החודש; ההחזר = הכנסה חלקי הוצאה',
+    'הוצאה': 'כמה שולם על פרסום הקמפיין בתקופה הנבחרת',
+    'לידים': 'כמה פניות חדשות הגיעו מהקמפיין',
+    'עלות לליד': 'הוצאת הפרסום חלקי מספר הלידים',
+    'קבעו תור': 'כמה מהלידים קבעו תור בקליניקה',
+    'הגיעו': 'כמה מבעלי התור הגיעו בפועל',
+    'שילמו': 'כמה מטופלים שילמו על טיפול',
+    'הכנסה': 'סך התשלומים ממטופלים ששויכו לקמפיין',
+    'החזר על ההוצאה': 'הכנסה חלקי הוצאת הפרסום; על כל שקל שהושקע',
+    'נשלחו': 'לכמה אנשי קשר נשלחה ההודעה',
+    'ענו': 'כמה ענו להודעה, ואחוזם מכלל הנשלחו',
+    'עלות שליחה': 'עלות שליחת התבנית בוואטסאפ לפי תעריפי מטא',
+    'חדשים שלא קיבלו מענה': 'לידים חדשים שעוד לא נענתה להם הודעה ראשונה',
+    'לחצו \u201Cלקבוע ייעוץ\u201D': 'לידים שלחצו על הכפתור ומחכים לתיאום',
+    'בקשות שינוי תור': 'מטופלים שביקשו לשנות תור קיים',
+    'פניות מהאתר בבדיקה ידנית': 'פניות מהטופס באתר שדורשות אימות לפני קליטה',
+    'פעיל': 'רכיב שעובד כרגע כרגיל',
+    'תצוגה מקדימה': 'רכיב בהרצת ניסיון לפני הפעלה מלאה',
+    'לא נבנה': 'רכיב מתוכנן שעוד לא פותח',
+  };
   const BOARD = {
     updated: 'עודכן לפני 12 דקות',
     kpis: [
@@ -1070,14 +1098,14 @@
     const bars = BOARD.leadDays.map((v, i) => `<div class="bar" title="${v} לידים"><div class="runs" style="height:${Math.round(v / maxV * 100)}%"></div></div>`).join('');
     el.innerHTML = `
       <div class="dash-grid">
-        ${BOARD.kpis.map(k => `<div class="stat"><div class="s-label">${k.label}</div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div></div>`).join('')}
+        ${BOARD.kpis.map(k => `<div class="stat has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0"><div class="s-label">${k.label}</div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div></div>`).join('')}
       </div>
       <div class="dash-2col">
         <div class="card" style="margin:0"><h3>לידים \u2014 14 ימים אחרונים</h3>
-          <div class="chart">${bars}</div>
+          <div class="chart has-tip" data-tip="מספר הלידים שנכנסו בכל אחד מ-14 הימים האחרונים" tabindex="0">${bars}</div>
           <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים ביום</span></div>
         </div>
-        <div class="card" style="margin:0"><h3>לידים לפי ערוץ \u2014 החודש</h3>
+        <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים החודשיים לפי הערוץ שממנו הגיעו" tabindex="0"><h3>לידים לפי ערוץ \u2014 החודש</h3>
           ${BOARD.channels.map(([name, n]) => `<div class="toplist-row">${name}<span class="n num">${n}</span></div>`).join('')}
         </div>
       </div>
@@ -1085,39 +1113,68 @@
   }
 
   function boardCampaigns(el) {
-    const metric = (label, value, big) => `<div class="metric"><div class="m-label">${label}</div><div class="m-value num ${big ? 'big' : ''}">${value}</div></div>`;
+    const sum = (f) => BOARD.campaigns.reduce((a, c) => a + c[f], 0);
+    const totals = { spend: sum('spend'), leads: sum('leads'), booked: sum('booked'), paid: sum('paid'), revenue: sum('revenue') };
+    const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
+      <div class="ac-num num">${value}</div><div class="ac-label">${label}</div></div>`;
+    const tile = (label, value, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
+      <div class="msg-num num" style="font-size:20px">${value}</div><div class="msg-label">${label}</div></div>`;
     el.innerHTML = `
       <div class="board-tabs" style="margin-top:0">
-        <span class="board-tab active">החודש</span><span class="board-tab" style="opacity:.55">7 ימים</span><span class="board-tab" style="opacity:.55">90 ימים</span>
-        <span class="board-tab" style="opacity:.55">ערוץ: הכל</span><span class="board-tab" style="opacity:.55">טיפול: הכל</span>
+        <span class="board-tab active">\u05D4\u05D7\u05D5\u05D3\u05E9</span><span class="board-tab" style="opacity:.55">7 \u05D9\u05DE\u05D9\u05DD</span><span class="board-tab" style="opacity:.55">90 \u05D9\u05DE\u05D9\u05DD</span>
+        <span class="board-tab" style="opacity:.55">\u05E2\u05E8\u05D5\u05E5: \u05D4\u05DB\u05DC</span><span class="board-tab" style="opacity:.55">\u05D8\u05D9\u05E4\u05D5\u05DC: \u05D4\u05DB\u05DC</span>
+      </div>
+      <div class="att-counters" style="grid-template-columns:repeat(6,1fr)">
+        ${counter('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(totals.spend), '#dc2626')}
+        ${counter('\u05DC\u05D9\u05D3\u05D9\u05DD', totals.leads, '#2563eb')}
+        ${counter('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', totals.booked, '#d97706')}
+        ${counter('\u05E9\u05D9\u05DC\u05DE\u05D5', totals.paid, '#16a34a')}
+        ${counter('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(totals.revenue), '#7c3aed')}
+        ${counter('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', '\u00D7' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
       </div>
       ${BOARD.campaigns.map(c => {
         const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '\u2014';
         const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : '\u2014';
         const roas = c.spend ? (c.revenue / c.spend).toFixed(1) : '\u2014';
-        return `<div class="card" style="margin:0 0 12px">
-          <div class="top" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h4 style="margin:0">${c.name}</h4><span class="badge blue">${c.channel}</span></div>
-          <div class="metric-grid">
-            ${metric('הוצאה', ils(c.spend))}${metric('לידים', c.leads)}${metric('עלות לליד', cpl)}${metric('קבעו תור', c.booked)}
-            ${metric('הגיעו', c.arrived)}${metric('שילמו', c.paid)}${metric('הכנסה', ils(c.revenue))}${metric('החזר על ההוצאה', roas === '\u2014' ? '\u2014' : '\u00D7' + roas, true)}
+        return `<details class="att-list card" style="--ac:var(--green);margin:0 0 12px">
+          <summary>
+            <span class="att-title">${c.name}</span><span class="badge blue">${c.channel}</span>
+            <span class="camp-head num"><b style="color:#2563eb">${c.leads}</b> \u05DC\u05D9\u05D3\u05D9\u05DD \u00B7 <b style="color:#7c3aed">${ils(c.revenue)}</b> \u05D4\u05DB\u05E0\u05E1\u05D4${roas === '\u2014' ? '' : ` \u00B7 <b style="color:var(--green)">\u00D7${roas}</b> \u05D4\u05D7\u05D6\u05E8`}</span>
+            <span class="att-caret">\u25C2</span>
+          </summary>
+          <div class="msg-stats" style="grid-template-columns:repeat(4,1fr);margin:2px 16px 6px">
+            ${tile('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(c.spend), '#dc2626')}
+            ${tile('\u05DC\u05D9\u05D3\u05D9\u05DD', c.leads, '#2563eb')}
+            ${tile('\u05E2\u05DC\u05D5\u05EA \u05DC\u05DC\u05D9\u05D3', cpl, '#0891b2')}
+            ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', c.booked, '#d97706')}
+            ${tile('\u05D4\u05D2\u05D9\u05E2\u05D5', c.arrived, '#65a30d')}
+            ${tile('\u05E9\u05D9\u05DC\u05DE\u05D5', c.paid, '#16a34a')}
+            ${tile('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(c.revenue), '#7c3aed')}
+            ${tile('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', roas === '\u2014' ? '\u2014' : '\u00D7' + roas, 'var(--green)')}
           </div>
-          <div class="cell-sub" style="margin-top:8px">עלות למטופל משלם: ${cpp}</div>
-        </div>`;
+          <div class="cell-sub" style="margin:0 16px 12px">\u05E2\u05DC\u05D5\u05EA \u05DC\u05DE\u05D8\u05D5\u05E4\u05DC \u05DE\u05E9\u05DC\u05DD: ${cpp}</div>
+        </details>`;
       }).join('')}`;
   }
 
   function boardFunnel(el) {
     const funnelCard = (c) => {
       const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
-      return `<div class="card" style="margin:0"><h3 style="font-size:15px">${c.name}</h3>
+      const opacities = [1, .82, .66, .52];
+      const widths = stages.map(([, n]) => Math.max(12, Math.round(n / c.leads * 100)));
+      return `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>
+        <div class="fn-wrap has-tip" data-tip="המשפך מראה כמה לידים עברו כל שלב, מפנייה ראשונה ועד תשלום; האחוזים מחושבים מכלל הלידים" tabindex="0">
         ${stages.map(([label, n], i) => {
-          const w = Math.max(3, Math.round(n / c.leads * 100));
-          const conv = i ? Math.round(n / stages[i - 1][1] * 100) + '% מהשלב הקודם' : '100%';
-          return `<div class="funnel-row"><span class="f-label">${label}</span>
-            <span class="f-track"><span class="f-fill" style="width:${w}%"></span></span>
-            <span class="f-val"><b class="num">${n}</b> <span class="f-conv">${conv}</span></span></div>`;
+          const topW = i ? widths[i - 1] : 100, botW = widths[i];
+          const poly = `polygon(${50 - topW / 2}% 0, ${50 + topW / 2}% 0, ${50 + botW / 2}% 100%, ${50 - botW / 2}% 100%)`;
+          const conv = i ? `<span class="fn-pct num">▾ ${Math.round(n / stages[i - 1][1] * 100)}% מהשלב הקודם</span>` : '';
+          return `<div class="fn-stage">
+            <div class="fn-label">${label}<b class="num">${n}</b><span class="fn-pct num">${Math.round(n / c.leads * 100)}%</span>${conv}</div>
+            <div class="fn-bar" title="${label}: ${n} מתוך ${c.leads} לידים" style="clip-path:${poly};opacity:${opacities[i]}"></div>
+          </div>`;
         }).join('')}
-        <div class="cell-sub" style="margin-top:8px">נשירה עיקרית: ${Math.round(100 - c.booked / c.leads * 100)}% בין ליד לתור</div>
+        </div>
+        <div class="cell-sub" style="margin-top:10px;text-align:center">נשירה עיקרית: ${Math.round(100 - c.booked / c.leads * 100)}% בין ליד לתור</div>
       </div>`;
     };
     el.innerHTML = `
@@ -1126,29 +1183,36 @@
   }
 
   function boardAttention(el) {
-    el.innerHTML = `<div class="dash-2col">
-      ${BOARD.attention.map(g => `<div class="card" style="margin:0"><h3 style="font-size:15px">${g.title} <span class="badge">${g.rows.length}</span></h3>
+    const colors = ['#dc2626', '#d97706', '#2563eb', '#7c3aed'];
+    el.innerHTML = `
+      <div class="att-counters">
+        ${BOARD.attention.map((g, i) => `<div class="att-counter has-tip" data-tip="${TIP[g.title] || ''}" tabindex="0" style="--ac:${colors[i % 4]}">
+          <div class="ac-num num">${g.rows.length}</div><div class="ac-label">${g.title}</div>
+        </div>`).join('')}
+      </div>
+      ${BOARD.attention.map((g, i) => `<details class="att-list card" style="--ac:${colors[i % 4]};margin:0 0 12px">
+        <summary><span class="att-title">${g.title}</span><span class="att-badge num">${g.rows.length}</span><span class="att-caret">◂</span></summary>
         ${g.rows.map(r => `<div class="att-row">
           <div class="a-top"><span class="a-name">${r.name}</span><span class="num cell-sub" style="direction:ltr">${r.phone}</span><span class="badge blue">${r.topic}</span></div>
           <div class="cell-sub">${r.ago}</div>
         </div>`).join('')}
-      </div>`).join('')}
-    </div>
-    <div class="guide">במערכת המלאה הרשימה נקראת ישירות מאיזיביזי בכל טעינה; פרטי מטופלים לא נשמרים בדשבורד.</div>`;
+      </details>`).join('')}
+      <div class="guide">במערכת המלאה הרשימה נקראת ישירות מאיזיביזי בכל טעינה; פרטי מטופלים לא נשמרים בדשבורד.</div>`;
   }
 
   function boardMessages(el) {
-    const metric = (label, value) => `<div class="metric"><div class="m-label">${label}</div><div class="m-value num">${value}</div></div>`;
+    const tile = (label, value, sub, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
+      <div class="msg-num num">${value}</div><div class="msg-label">${label}</div>${sub ? `<div class="msg-sub num">${sub}</div>` : ''}
+    </div>`;
     el.innerHTML = BOARD.templates.map(t => {
-      const dp = Math.round(t.delivered / t.sent * 100), ap = Math.round(t.answered / t.sent * 100), bp = t.booked ? Math.round(t.booked / t.sent * 100) : 0;
+      const ap = Math.round(t.answered / t.sent * 100);
       return `<div class="card" style="margin:0 0 12px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h4 style="margin:0">${t.name}</h4><span class="badge">תבנית</span></div>
-        <div class="msg-bar" title="נמסרו / ענו / קבעו תור">
-          <span style="width:${dp}%;background:var(--blue)"></span><span style="width:${ap}%;background:var(--green)"></span><span style="width:${bp}%;background:var(--mint)"></span>
-        </div>
-        <div class="metric-grid">
-          ${metric('נשלחו', t.sent)}${metric('נמסרו', `${t.delivered} (${dp}%)`)}${metric('ענו', `${t.answered} (${ap}%)`)}
-          ${metric('קבעו תור', t.booked == null ? '\u2014' : t.booked)}${metric('ביקשו הסרה', t.unsub)}${metric('עלות', ils(t.cost))}
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h4 style="margin:0">${t.name}</h4><span class="badge">\u05EA\u05D1\u05E0\u05D9\u05EA</span></div>
+        <div class="msg-stats">
+          ${tile('\u05E0\u05E9\u05DC\u05D7\u05D5', t.sent, '', '#2563eb')}
+          ${tile('\u05E2\u05E0\u05D5', t.answered, ap + '% \u05DE\u05D4\u05E0\u05E9\u05DC\u05D7\u05D5', '#16a34a')}
+          ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', t.booked == null ? '\u2014' : t.booked, '', '#d97706')}
+          ${tile('\u05E2\u05DC\u05D5\u05EA \u05E9\u05DC\u05D9\u05D7\u05D4', ils(t.cost), t.unsub ? `${t.unsub} \u05D1\u05D9\u05E7\u05E9\u05D5 \u05D4\u05E1\u05E8\u05D4` : '', '#7c3aed')}
         </div>
       </div>`;
     }).join('');
@@ -1157,11 +1221,22 @@
   function boardSystems(el) {
     const badge = (s) => s === 'פעיל' ? '<span class="badge green"><span class="dot"></span>פעיל</span>'
       : s === 'תצוגה מקדימה' ? '<span class="badge yellow">תצוגה מקדימה</span>' : '<span class="badge">לא נבנה</span>';
+    const count = (st) => BOARD.systems.filter(s => s.status === st).length;
+    const counters = [
+      ['פעיל', count('פעיל'), 'var(--mint-ink)'],
+      ['תצוגה מקדימה', count('תצוגה מקדימה'), 'var(--yellow)'],
+      ['לא נבנה', count('לא נבנה'), 'var(--muted)'],
+    ];
     el.innerHTML = `
-      <div class="card" style="margin:0 0 12px"><h3>רכיבי המערכת</h3>
-        ${BOARD.systems.map(s => `<div class="sys-row"><span class="sys-name">${s.name}</span>${badge(s.status)}<span class="sys-meta">${s.meta}</span></div>`).join('')}
+      <div class="att-counters" style="grid-template-columns:repeat(3,1fr)">
+        ${counters.map(([label, n, c]) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${c}">
+          <div class="ac-num num">${n}</div><div class="ac-label">${label}</div>
+        </div>`).join('')}
       </div>
-      <div class="card" style="margin:0"><h3>תקלות</h3><div class="cell-sub">${BOARD.sysErrors}</div></div>`;
+      <div class="sys-grid">
+        ${BOARD.systems.map(s => `<div class="sys-tile"><div class="sys-tile-top"><span class="sys-name">${s.name}</span>${badge(s.status)}</div><span class="sys-meta">${s.meta}</span></div>`).join('')}
+      </div>
+      <div class="card" style="margin:14px 0 0"><h3>תקלות</h3><div class="cell-sub">${BOARD.sysErrors}</div></div>`;
   }
 
   /* ---------------- router ---------------- */
