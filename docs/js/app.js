@@ -1183,7 +1183,7 @@
       labels: P.leadDays.map((_, i) => (i % 2 === 0 ? (pk === 'day' ? `${8 + i}:00` : String(i + 1)) : '')),
       tip: (i) => `${P.leadDays[i]} לידים`,
     });
-    const pal = ['#4a1b66', '#7c3aed', '#d97706', '#16a34a', '#0891b2'];
+    const pal = ['var(--pal0)', 'var(--pal1)', 'var(--pal2)', 'var(--pal3)', 'var(--pal4)'];
     const chanTot = P.channels.reduce((a, ch) => a + ch.n, 0);
     let _acc = 0;
     const donutSegs = P.channels.map((ch, i) => { const f = _acc / chanTot * 360; _acc += ch.n; return `${pal[i % 5]} ${f}deg ${_acc / chanTot * 360}deg`; }).join(', ');
@@ -1195,7 +1195,7 @@
         ${rangeNote}
       </div>
       <div class="dash-grid">
-        ${P.kpis.map((k, i) => `<div class="stat kpi has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0" style="--ac:${['#2563eb', '#2563eb', '#d97706', '#16a34a', '#7c3aed', '#dc2626'][i % 6]}"><div class="s-label">${k.label}<span class="info-i">i</span></div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div><span class="kpi-chip ${k.up ? 'ok' : 'bad'}">${k.up ? 'מגמה חיובית' : 'דורש טיפול'}</span></div>`).join('')}
+        ${P.kpis.map((k, i) => `<div class="stat kpi has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0" style="--ac:${['var(--ac-blue)', 'var(--ac-blue)', 'var(--ac-orange)', 'var(--ac-green)', 'var(--ac-purple)', 'var(--ac-red)'][i % 6]}"><div class="s-label">${k.label}<span class="info-i">i</span></div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div><span class="kpi-chip ${k.up ? 'ok' : 'bad'}">${k.up ? 'מגמה חיובית' : 'דורש טיפול'}</span></div>`).join('')}
       </div>
       <div class="dash-2col">
         <div class="card" style="margin:0"><h3>${P.chartTitle}</h3>
@@ -1205,7 +1205,7 @@
           ${donutHtml}
           <div class="chan-grid">${P.channels.map(ch => {
             const cv = parseInt(ch.conv);
-            const cc = cv >= 28 ? '#16a34a' : cv >= 21 ? '#d97706' : '#dc2626';
+            const cc = cv >= 28 ? 'var(--ac-green)' : cv >= 21 ? 'var(--ac-orange)' : 'var(--ac-red)';
             return `<div class="chan-tile" style="--ac:${cc}">
               <div class="chan-name">${ch.name}</div>
               <div class="chan-n num">${ch.n}<span class="chan-nl">לידים</span></div>
@@ -1236,11 +1236,11 @@
         <span class="board-tab" style="opacity:.55">\u05E2\u05E8\u05D5\u05E5: \u05D4\u05DB\u05DC</span><span class="board-tab" style="opacity:.55">\u05D8\u05D9\u05E4\u05D5\u05DC: \u05D4\u05DB\u05DC</span>
       </div>
       <div class="att-counters c6">
-        ${counter('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(totals.spend), '#dc2626')}
-        ${counter('\u05DC\u05D9\u05D3\u05D9\u05DD', totals.leads, '#2563eb')}
-        ${counter('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', totals.booked, '#d97706')}
-        ${counter('\u05E9\u05D9\u05DC\u05DE\u05D5', totals.paid, '#16a34a')}
-        ${counter('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(totals.revenue), '#7c3aed')}
+        ${counter('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(totals.spend), 'var(--ac-red)')}
+        ${counter('\u05DC\u05D9\u05D3\u05D9\u05DD', totals.leads, 'var(--ac-blue)')}
+        ${counter('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', totals.booked, 'var(--ac-orange)')}
+        ${counter('\u05E9\u05D9\u05DC\u05DE\u05D5', totals.paid, 'var(--ac-green)')}
+        ${counter('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(totals.revenue), 'var(--ac-purple)')}
         ${counter('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', '\u00D7' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
       </div>
       <div class="card" style="margin:0 0 12px"><h3>התקדמות לידים לפי קמפיין</h3>
@@ -1248,11 +1248,11 @@
           const seg = (n, col) => n > 0 ? `<span style="width:${n / c.leads * 100}%;background:${col}"></span>` : '';
           return `<div class="hbar-row has-tip" data-tip="${c.name}: ${c.leads} לידים · ${c.booked} קבעו תור · ${c.arrived} הגיעו · ${c.paid} שילמו" tabindex="0">
             <span class="hbar-name">${c.name}</span>
-            <span class="hbar-track">${seg(c.paid, '#15803d')}${seg(c.arrived - c.paid, '#86d3a2')}${seg(c.booked - c.arrived, '#e9b949')}${seg(c.leads - c.booked, '#ddd9e8')}</span>
+            <span class="hbar-track">${seg(c.paid, 'var(--hb-paid)')}${seg(c.arrived - c.paid, 'var(--hb-arr)')}${seg(c.booked - c.arrived, 'var(--hb-book)')}${seg(c.leads - c.booked, 'var(--hb-none)')}</span>
             <b class="hbar-n num">${c.leads}</b>
           </div>`;
         }).join('')}
-        <div class="chart-legend"><span><span class="dotk" style="background:#15803d"></span>שילמו</span><span><span class="dotk" style="background:#86d3a2"></span>הגיעו</span><span><span class="dotk" style="background:#e9b949"></span>קבעו תור</span><span><span class="dotk" style="background:#ddd9e8"></span>לא קבעו תור</span></div>
+        <div class="chart-legend"><span><span class="dotk" style="background:var(--hb-paid)"></span>שילמו</span><span><span class="dotk" style="background:var(--hb-arr)"></span>הגיעו</span><span><span class="dotk" style="background:var(--hb-book)"></span>קבעו תור</span><span><span class="dotk" style="background:var(--hb-none)"></span>לא קבעו תור</span></div>
       </div>
       ${BOARD.campaigns.map(c => {
         const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '\u2014';
@@ -1261,17 +1261,17 @@
         return `<details class="att-list card" style="--ac:var(--green);margin:0 0 12px">
           <summary>
             <span class="att-title">${c.name}</span><span class="badge blue">${c.channel}</span>
-            <span class="camp-head num"><b style="color:#2563eb">${c.leads}</b> \u05DC\u05D9\u05D3\u05D9\u05DD \u00B7 <b style="color:#7c3aed">${ils(c.revenue)}</b> \u05D4\u05DB\u05E0\u05E1\u05D4${roas === '\u2014' ? '' : ` \u00B7 <b style="color:var(--green)">\u00D7${roas}</b> \u05D4\u05D7\u05D6\u05E8`}</span>
+            <span class="camp-head num"><b style="color:var(--ac-blue)">${c.leads}</b> \u05DC\u05D9\u05D3\u05D9\u05DD \u00B7 <b style="color:var(--ac-purple)">${ils(c.revenue)}</b> \u05D4\u05DB\u05E0\u05E1\u05D4${roas === '\u2014' ? '' : ` \u00B7 <b style="color:var(--green)">\u00D7${roas}</b> \u05D4\u05D7\u05D6\u05E8`}</span>
             <span class="att-caret">\u25C2</span>
           </summary>
           <div class="msg-stats c4" style="margin:2px 16px 6px">
-            ${tile('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(c.spend), '#dc2626')}
-            ${tile('\u05DC\u05D9\u05D3\u05D9\u05DD', c.leads, '#2563eb')}
-            ${tile('\u05E2\u05DC\u05D5\u05EA \u05DC\u05DC\u05D9\u05D3', cpl, '#0891b2')}
-            ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', c.booked, '#d97706')}
-            ${tile('\u05D4\u05D2\u05D9\u05E2\u05D5', c.arrived, '#65a30d')}
-            ${tile('\u05E9\u05D9\u05DC\u05DE\u05D5', c.paid, '#16a34a')}
-            ${tile('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(c.revenue), '#7c3aed')}
+            ${tile('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(c.spend), 'var(--ac-red)')}
+            ${tile('\u05DC\u05D9\u05D3\u05D9\u05DD', c.leads, 'var(--ac-blue)')}
+            ${tile('\u05E2\u05DC\u05D5\u05EA \u05DC\u05DC\u05D9\u05D3', cpl, 'var(--ac-cyan)')}
+            ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', c.booked, 'var(--ac-orange)')}
+            ${tile('\u05D4\u05D2\u05D9\u05E2\u05D5', c.arrived, 'var(--ac-olive)')}
+            ${tile('\u05E9\u05D9\u05DC\u05DE\u05D5', c.paid, 'var(--ac-green)')}
+            ${tile('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(c.revenue), 'var(--ac-purple)')}
             ${tile('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', roas === '\u2014' ? '\u2014' : '\u00D7' + roas, 'var(--green)')}
           </div>
           <div class="cell-sub" style="margin:0 16px 12px">\u05E2\u05DC\u05D5\u05EA \u05DC\u05DE\u05D8\u05D5\u05E4\u05DC \u05DE\u05E9\u05DC\u05DD: ${cpp}</div>
@@ -1279,7 +1279,7 @@
       }).join('')}`;
   }
 
-  const FCOL = [['#6b2d8f', '#4a1b66'], ['#9b5cf0', '#7c3aed'], ['#f0a02e', '#d97706'], ['#3ec96f', '#16a34a']];
+  const FCOL = [['var(--fc0a)', 'var(--fc0b)'], ['var(--fc1a)', 'var(--fc1b)'], ['var(--fc2a)', 'var(--fc2b)'], ['var(--fc3a)', 'var(--fc3b)']];
   const FN_LAYOUTS = [['1', 'משפך קלאסי'], ['2', 'חצים'], ['3', 'סרגלים'], ['4', 'טבעות'], ['5', 'כרטיסים'], ['6', 'זרימה']];
 
   function fnChips(stages) {
@@ -1299,7 +1299,7 @@
     const N = 4, uid = `fn${layout}${ci}`;
     const conv = (i) => Math.round(stages[i][1] / stages[i - 1][1] * 100) + '%';
     const lost = (i) => stages[i - 1][1] - stages[i][1];
-    const grads = (dir) => FCOL.map((g, i) => `<linearGradient id="${uid}${dir}${i}" x1="0" y1="0" x2="${dir === 'h' ? 1 : 0}" y2="${dir === 'h' ? 0 : 1}"><stop offset="0" stop-color="${g[0]}"/><stop offset="1" stop-color="${g[1]}"/></linearGradient>`).join('');
+    const grads = (dir) => FCOL.map((g, i) => `<linearGradient id="${uid}${dir}${i}" x1="0" y1="0" x2="${dir === 'h' ? 1 : 0}" y2="${dir === 'h' ? 0 : 1}"><stop offset="0" style="stop-color:${g[0]}"/><stop offset="1" style="stop-color:${g[1]}"/></linearGradient>`).join('');
 
     if (layout === '1') {
       const W = 900, H = 340, cx = 290, top = 480, bot = 150, gap = 8, sh = (H - gap * (N - 1)) / N, step = (top - bot) / N;
@@ -1344,7 +1344,7 @@
         const y = i < N - 1 ? (t + nt) / 2 : bottom - rs[i];
         o += `<circle cx="${cx}" cy="${y}" r="3.5" fill="#fff"/>
         <line x1="${cx}" y1="${y}" x2="560" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
-        <text x="575" y="${y - 2}" font-size="12" font-weight="700" fill="${FCOL[i][0]}">${nm}</text>
+        <text x="575" y="${y - 2}" font-size="12" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
         <text x="575" y="${y + 20}" class="ft" font-size="19" font-weight="700">${v}</text>
         <text x="760" y="${y + 21}" class="ftg" font-size="17" font-weight="800">${i ? conv(i) : ''}</text>`;
       });
@@ -1372,8 +1372,8 @@
     }
     stages.forEach(([nm, v], i) => {
       const x = xs[i], tp = cy - hs[i] / 2;
-      o += `<rect x="${x}" y="${tp}" width="${nw}" height="${hs[i]}" rx="6" fill="${FCOL[i][0]}"/>
-      <text x="${x + nw / 2}" y="${tp - 32}" text-anchor="middle" font-size="12" font-weight="700" fill="${FCOL[i][0]}">${nm}</text>
+      o += `<rect x="${x}" y="${tp}" width="${nw}" height="${hs[i]}" rx="6" style="fill:${FCOL[i][0]}"/>
+      <text x="${x + nw / 2}" y="${tp - 32}" text-anchor="middle" font-size="12" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
       <text x="${x + nw / 2}" y="${tp - 10}" text-anchor="middle" class="ft" font-size="18" font-weight="700">${v}</text>`;
     });
     return o + '</svg>';
@@ -1406,7 +1406,7 @@
   }
 
   function boardAttention(el) {
-    const colors = ['#dc2626', '#d97706', '#2563eb', '#7c3aed'];
+    const colors = ['var(--ac-red)', 'var(--ac-orange)', 'var(--ac-blue)', 'var(--ac-purple)'];
     el.innerHTML = `
       <div class="att-counters">
         ${BOARD.attention.map((g, i) => `<div class="att-counter has-tip" data-tip="${TIP[g.title] || ''}" tabindex="0" style="--ac:${colors[i % 4]}">
@@ -1432,10 +1432,10 @@
       return `<div class="card" style="margin:0 0 12px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h4 style="margin:0">${t.name}</h4><span class="badge">\u05EA\u05D1\u05E0\u05D9\u05EA</span></div>
         <div class="msg-stats">
-          ${tile('\u05E0\u05E9\u05DC\u05D7\u05D5', t.sent, '', '#2563eb')}
-          ${tile('\u05E2\u05E0\u05D5', t.answered, ap + '% \u05DE\u05D4\u05E0\u05E9\u05DC\u05D7\u05D5', '#16a34a')}
-          ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', t.booked == null ? '\u2014' : t.booked, '', '#d97706')}
-          ${tile('\u05E2\u05DC\u05D5\u05EA \u05E9\u05DC\u05D9\u05D7\u05D4', ils(t.cost), t.unsub ? `${t.unsub} \u05D1\u05D9\u05E7\u05E9\u05D5 \u05D4\u05E1\u05E8\u05D4` : '', '#7c3aed')}
+          ${tile('\u05E0\u05E9\u05DC\u05D7\u05D5', t.sent, '', 'var(--ac-blue)')}
+          ${tile('\u05E2\u05E0\u05D5', t.answered, ap + '% \u05DE\u05D4\u05E0\u05E9\u05DC\u05D7\u05D5', 'var(--ac-green)')}
+          ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', t.booked == null ? '\u2014' : t.booked, '', 'var(--ac-orange)')}
+          ${tile('\u05E2\u05DC\u05D5\u05EA \u05E9\u05DC\u05D9\u05D7\u05D4', ils(t.cost), t.unsub ? `${t.unsub} \u05D1\u05D9\u05E7\u05E9\u05D5 \u05D4\u05E1\u05E8\u05D4` : '', 'var(--ac-purple)')}
         </div>
       </div>`;
     }).join('');
