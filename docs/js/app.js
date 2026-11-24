@@ -1279,31 +1279,120 @@
       }).join('')}`;
   }
 
-  function boardFunnel(el) {
-    const C = [['#4a1b66', '#f0e7f8'], ['#7c3aed', '#f3edfd'], ['#b45309', '#fdf3e3'], ['#15803d', '#e8f7ee']];
-    const funnelCard = (c) => {
-      const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
-      const w = stages.map(([, n]) => Math.max(46, Math.round(46 + 54 * n / c.leads)));
-      let h = '';
-      stages.forEach(([label, n], i) => {
+  const FCOL = [['#6b2d8f', '#4a1b66'], ['#9b5cf0', '#7c3aed'], ['#f0a02e', '#d97706'], ['#3ec96f', '#16a34a']];
+  const FN_LAYOUTS = [['1', 'משפך קלאסי'], ['2', 'חצים'], ['3', 'סרגלים'], ['4', 'טבעות'], ['5', 'כרטיסים'], ['6', 'זרימה']];
+
+  function fnChips(stages) {
+    const total = Math.round(stages[3][1] / stages[0][1] * 100);
+    let worst = 1, best = 1;
+    for (let i = 1; i < 4; i++) {
+      const p = stages[i][1] / stages[i - 1][1];
+      if (p < stages[worst][1] / stages[worst - 1][1]) worst = i;
+      if (p > stages[best][1] / stages[best - 1][1]) best = i;
+    }
+    const pc = (i) => Math.round(stages[i][1] / stages[i - 1][1] * 100) + '%';
+    return `<div class="chips"><span class="chip">המרה מקצה לקצה <b class="num">${total}%</b></span><span class="chip">הנשירה הגדולה: ${stages[worst - 1][0]} → ${stages[worst][0]} <b class="num">${pc(worst)}</b></span><span class="chip">המעבר החזק: ${stages[best - 1][0]} → ${stages[best][0]} <b class="num">${pc(best)}</b></span></div>`;
+  }
+
+  function fnRender(layout, c, ci) {
+    const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
+    const N = 4, uid = `fn${layout}${ci}`;
+    const conv = (i) => Math.round(stages[i][1] / stages[i - 1][1] * 100) + '%';
+    const lost = (i) => stages[i - 1][1] - stages[i][1];
+    const grads = (dir) => FCOL.map((g, i) => `<linearGradient id="${uid}${dir}${i}" x1="0" y1="0" x2="${dir === 'h' ? 1 : 0}" y2="${dir === 'h' ? 0 : 1}"><stop offset="0" stop-color="${g[0]}"/><stop offset="1" stop-color="${g[1]}"/></linearGradient>`).join('');
+
+    if (layout === '1') {
+      const W = 900, H = 340, cx = 290, top = 480, bot = 150, gap = 8, sh = (H - gap * (N - 1)) / N, step = (top - bot) / N;
+      let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('v')}</defs>`;
+      stages.forEach(([nm, v], i) => {
+        const y = i * (sh + gap), wt = top - i * step, wb = top - (i + 1) * step;
+        o += `<polygon fill="url(#${uid}v${i})" points="${cx - wt / 2},${y} ${cx + wt / 2},${y} ${cx + wb / 2},${y + sh} ${cx - wb / 2},${y + sh}"/>
+        <polygon fill="rgba(255,255,255,.12)" points="${cx - wt / 2},${y} ${cx + wt / 2},${y} ${cx + (wt + wb) / 4},${y + sh / 2} ${cx - (wt + wb) / 4},${y + sh / 2}"/>
+        <text x="${cx}" y="${y + sh / 2 - 2}" text-anchor="middle" fill="#fff" fill-opacity=".9" font-size="13" font-weight="700">${nm}</text>
+        <text x="${cx}" y="${y + sh / 2 + 24}" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">${v}</text>`;
         if (i) {
-          const cv = Math.round(n / stages[i - 1][1] * 100);
-          const inset = Math.max(0, 50 - (w[i] / w[i - 1]) * 50);
-          h += `<div class="f3-neck" style="width:${w[i - 1]}%"><div class="f3-fill" style="background:${C[i][1]};clip-path:polygon(0 0,100% 0,${100 - inset}% 100%,${inset}% 100%)"></div><span class="f3-pill num">▾ ${cv}%</span></div>`;
+          const ex = cx + wt / 2 + 10, py = y - gap / 2;
+          o += `<line x1="${ex}" y1="${py}" x2="610" y2="${py}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/><circle cx="${ex}" cy="${py}" r="3" class="ft"/>
+          <rect x="610" y="${py - 15}" width="170" height="30" rx="15" class="fchip"/>
+          <text x="626" y="${py + 4.5}" class="ftg" font-size="13" font-weight="700">${conv(i)}</text>
+          <text x="686" y="${py + 4.5}" class="ftr" font-size="11.5">−${lost(i)} ירדו</text>`;
         }
-        h += `<div class="f3-stage has-tip" data-tip="${label}: ${n} מתוך ${c.leads} לידים (${Math.round(n / c.leads * 100)}%)" tabindex="0" style="width:${w[i]}%;border-color:${C[i][0]};background:${C[i][1]}">
-          <div class="f3n num" style="color:${C[i][0]}">${n}</div>
-          <div class="f3l" style="color:${C[i][0]}">${label} <span class="f3p num">· ${Math.round(n / c.leads * 100)}%</span></div>
-        </div>`;
       });
-      return `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>
-        <div class="f3-wrap">${h}</div>
-        <div class="cell-sub" style="margin-top:10px;text-align:center">נשירה עיקרית: ${Math.round(100 - c.booked / c.leads * 100)}% בין ליד לתור</div>
-      </div>`;
-    };
+      return o + '</svg>';
+    }
+    if (layout === '2') {
+      const hs = [140, 118, 100, 86];
+      return `<div class="chev">` + stages.map(([nm, v], i) => `
+        <div class="c"><div class="shape" style="height:${hs[i]}px;background:linear-gradient(135deg,${FCOL[i][0]},${FCOL[i][1]})">${nm}</div>
+        <div class="meta"><div class="v num">${v}</div><div class="cv">${i ? `<em class="num">${conv(i)}</em> מהשלב הקודם` : 'נקודת פתיחה'}</div></div></div>`).join('') + `</div>`;
+    }
+    if (layout === '3') {
+      return `<div class="bars">` + stages.map(([nm, v], i) => {
+        const w = Math.max(12, Math.round(100 * Math.pow(v / stages[0][1], .4)));
+        return `<div class="bar-row"><div class="lab"><b>${nm}</b><span class="num">${v}</span></div>
+        <div class="track"><div class="fill" style="width:${w}%;color:${FCOL[i][1]};background:linear-gradient(90deg,${FCOL[i][1]},${FCOL[i][0]} 50%,${FCOL[i][1]})"></div></div>
+        <div class="cv">${i ? `<b class="num">${conv(i)}</b><i class="num">−${lost(i)} ירדו</i>` : '<b>100%</b><i>פתיחה</i>'}</div></div>`;
+      }).join('') + `</div>`;
+    }
+    if (layout === '4') {
+      const W = 900, H = 420, cx = 250, bottom = 405, R = 190, dr = 42;
+      const rs = stages.map((_, i) => R - i * dr);
+      let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('v')}</defs>`;
+      stages.forEach((_, i) => { o += `<circle cx="${cx}" cy="${bottom - rs[i]}" r="${rs[i]}" fill="url(#${uid}v${i})" stroke="var(--card)" stroke-width="3"/>`; });
+      stages.forEach(([nm, v], i) => {
+        const t = bottom - 2 * rs[i], nt = i < N - 1 ? bottom - 2 * rs[i + 1] : bottom - rs[i] - 14;
+        const y = i < N - 1 ? (t + nt) / 2 : bottom - rs[i];
+        o += `<circle cx="${cx}" cy="${y}" r="3.5" fill="#fff"/>
+        <line x1="${cx}" y1="${y}" x2="560" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
+        <text x="575" y="${y - 2}" font-size="12" font-weight="700" fill="${FCOL[i][0]}">${nm}</text>
+        <text x="575" y="${y + 20}" class="ft" font-size="19" font-weight="700">${v}</text>
+        <text x="760" y="${y + 19}" class="ftg" font-size="13" font-weight="700">${i ? conv(i) : ''}</text>`;
+      });
+      return o + '</svg>';
+    }
+    if (layout === '5') {
+      return `<div class="fcards">` + stages.map(([nm, v], i) => {
+        const w = 100 - i * 10, pp = i ? Math.max(stages[i][1] / stages[i - 1][1] * 100, 2) : 100;
+        return `<div class="fcard" style="width:${w}%;--c:${FCOL[i][0]};--p:${Math.round(pp)}">
+          <div class="ring"><i class="num">${i ? conv(i) : '100%'}</i></div>
+          <div><div class="n">${nm}</div><div class="v num">${v}</div></div>
+          <div class="lost num">${i ? `−${lost(i)} ירדו` : 'נקודת פתיחה'}</div></div>`;
+      }).join('') + `</div>`;
+    }
+    // layout 6: curved flow (mirrored: starts at right for RTL)
+    const W = 900, H = 380, cy = 175, nw = 16;
+    const xs = stages.map((_, i) => 870 - i * 280);
+    const hs = stages.map(([, v]) => Math.max(20, Math.round(240 * Math.pow(v / stages[0][1], .36))));
+    let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('h')}</defs>`;
+    for (let i = 0; i < N - 1; i++) {
+      const x1 = xs[i], x2 = xs[i + 1] + nw, m = (x1 + x2) / 2, a = hs[i] / 2, b = hs[i + 1] / 2;
+      o += `<path fill="url(#${uid}h${i})" fill-opacity=".55" d="M${x1},${cy - a} C${m},${cy - a} ${m},${cy - b} ${x2},${cy - b} L${x2},${cy + b} C${m},${cy + b} ${m},${cy + a} ${x1},${cy + a} Z"/>
+      <text x="${m}" y="${H - 30}" text-anchor="middle" class="ftg" font-size="15" font-weight="700">${conv(i + 1)}</text>
+      <text x="${m}" y="${H - 11}" text-anchor="middle" class="ftr" font-size="11">−${lost(i + 1)} ירדו</text>`;
+    }
+    stages.forEach(([nm, v], i) => {
+      const x = xs[i], tp = cy - hs[i] / 2;
+      o += `<rect x="${x}" y="${tp}" width="${nw}" height="${hs[i]}" rx="6" fill="${FCOL[i][0]}"/>
+      <text x="${x + nw / 2}" y="${tp - 32}" text-anchor="middle" font-size="12" font-weight="700" fill="${FCOL[i][0]}">${nm}</text>
+      <text x="${x + nw / 2}" y="${tp - 10}" text-anchor="middle" class="ft" font-size="18" font-weight="700">${v}</text>`;
+    });
+    return o + '</svg>';
+  }
+
+  function boardFunnel(el) {
+    const urlFl = new URLSearchParams(location.search).get('fl');
+    const cur = urlFl || state.funnelLayout || localStorage.getItem('wa-funnel-layout') || '1';
     el.innerHTML = `
-      <div class="dash-2col">${funnelCard(BOARD.campaigns[0])}${funnelCard(BOARD.campaigns[1])}</div>
-      <div class="cell-sub" style="margin-top:10px">המשפך מראה כמה לידים עברו כל שלב, מפנייה ראשונה ועד תשלום; האחוזים בין הכרטיסים הם מעבר משלב לשלב. בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
+      <div class="board-tabs" style="margin-top:0;flex-wrap:wrap">
+        ${FN_LAYOUTS.map(([k, l]) => `<button class="board-tab ${cur === k ? 'active' : ''}" data-fl="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
+      </div>
+      <div class="dash-2col">${BOARD.campaigns.slice(0, 2).map((c, ci) => `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>${fnRender(cur, c, ci)}${fnChips([['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]])}</div>`).join('')}</div>
+      <div class="cell-sub" style="margin-top:10px">בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
+    el.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => {
+      state.funnelLayout = b.dataset.fl;
+      localStorage.setItem('wa-funnel-layout', b.dataset.fl);
+      boardFunnel(el);
+    });
   }
 
   function boardAttention(el) {
