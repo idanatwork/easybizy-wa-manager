@@ -561,3 +561,13 @@ button.board-tab{border:1px solid var(--line);background:var(--card);cursor:poin
 .hbar-n{flex:0 0 auto;font-weight:700;font-size:13px;min-width:20px}
 @media (max-width:640px){.hbar-name{flex-basis:104px;font-size:11.5px}}
 @media (max-width:900px){.stat.kpi .s-value{font-size:20px}}
+
+/* responsive grid classes (replace inline column overrides) */
+.att-counters.c6{grid-template-columns:repeat(6,1fr)}
+.att-counters.c3{grid-template-columns:repeat(3,1fr)}
+.msg-stats.c4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:760px){
+  .att-counters.c6{grid-template-columns:repeat(2,1fr)}
+  .msg-stats.c4{grid-template-columns:repeat(2,1fr)}
+  .dash-grid{grid-template-columns:repeat(2,1fr)}
+}

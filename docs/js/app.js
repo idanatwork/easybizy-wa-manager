@@ -1235,7 +1235,7 @@
         <span class="board-tab active">\u05D4\u05D7\u05D5\u05D3\u05E9</span><span class="board-tab" style="opacity:.55">7 \u05D9\u05DE\u05D9\u05DD</span><span class="board-tab" style="opacity:.55">90 \u05D9\u05DE\u05D9\u05DD</span>
         <span class="board-tab" style="opacity:.55">\u05E2\u05E8\u05D5\u05E5: \u05D4\u05DB\u05DC</span><span class="board-tab" style="opacity:.55">\u05D8\u05D9\u05E4\u05D5\u05DC: \u05D4\u05DB\u05DC</span>
       </div>
-      <div class="att-counters" style="grid-template-columns:repeat(6,1fr)">
+      <div class="att-counters c6">
         ${counter('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(totals.spend), '#dc2626')}
         ${counter('\u05DC\u05D9\u05D3\u05D9\u05DD', totals.leads, '#2563eb')}
         ${counter('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', totals.booked, '#d97706')}
@@ -1264,7 +1264,7 @@
             <span class="camp-head num"><b style="color:#2563eb">${c.leads}</b> \u05DC\u05D9\u05D3\u05D9\u05DD \u00B7 <b style="color:#7c3aed">${ils(c.revenue)}</b> \u05D4\u05DB\u05E0\u05E1\u05D4${roas === '\u2014' ? '' : ` \u00B7 <b style="color:var(--green)">\u00D7${roas}</b> \u05D4\u05D7\u05D6\u05E8`}</span>
             <span class="att-caret">\u25C2</span>
           </summary>
-          <div class="msg-stats" style="grid-template-columns:repeat(4,1fr);margin:2px 16px 6px">
+          <div class="msg-stats c4" style="margin:2px 16px 6px">
             ${tile('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(c.spend), '#dc2626')}
             ${tile('\u05DC\u05D9\u05D3\u05D9\u05DD', c.leads, '#2563eb')}
             ${tile('\u05E2\u05DC\u05D5\u05EA \u05DC\u05DC\u05D9\u05D3', cpl, '#0891b2')}
@@ -1352,7 +1352,7 @@
       ['לא נבנה', count('לא נבנה'), 'var(--muted)'],
     ];
     el.innerHTML = `
-      <div class="att-counters" style="grid-template-columns:repeat(3,1fr)">
+      <div class="att-counters c3">
         ${counters.map(([label, n, c]) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${c}">
           <div class="ac-num num">${n}</div><div class="ac-label">${label}<span class="info-i">i</span></div>
         </div>`).join('')}
