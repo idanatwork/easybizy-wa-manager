@@ -505,3 +505,13 @@ button.board-tab{border:1px solid var(--line);background:var(--card);cursor:poin
 .chan-stats{display:flex;gap:18px;margin-top:4px}
 .chan-stat b{font-size:15px;font-weight:800}
 .chan-stat span{display:block;font-size:11px;color:var(--muted)}
+
+/* funnel: soft stage cards with narrowing neck (proposal 3) */
+.f3-wrap{padding-top:6px}
+.f3-stage{border-radius:12px;margin-inline:auto;text-align:center;padding:12px 14px 10px;position:relative;border:1.5px solid}
+.f3-stage .f3n{font-size:30px;font-weight:800;line-height:1.1}
+.f3-stage .f3l{font-size:13px;font-weight:700}
+.f3-stage .f3p{font-size:11px;opacity:.75;font-weight:600}
+.f3-neck{margin:-1px auto;position:relative;height:24px}
+.f3-neck .f3-fill{position:absolute;inset:0}
+.f3-pill{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border:1px solid var(--line);border-radius:99px;font-size:11px;font-weight:700;color:var(--muted);padding:1px 9px;z-index:2;white-space:nowrap}

@@ -1241,30 +1241,30 @@
   }
 
   function boardFunnel(el) {
+    const C = [['#4a1b66', '#f0e7f8'], ['#7c3aed', '#f3edfd'], ['#b45309', '#fdf3e3'], ['#15803d', '#e8f7ee']];
     const funnelCard = (c) => {
       const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
-      const colors = ['#4a1b66', '#7c3aed', '#d97706', '#16a34a'];
-      const widths = stages.map(([, n]) => Math.min(100, 30 + 0.7 * Math.round(n / c.leads * 100)));
+      const w = stages.map(([, n]) => Math.max(46, Math.round(46 + 54 * n / c.leads)));
+      let h = '';
+      stages.forEach(([label, n], i) => {
+        if (i) {
+          const cv = Math.round(n / stages[i - 1][1] * 100);
+          const inset = Math.max(0, 50 - (w[i] / w[i - 1]) * 50);
+          h += `<div class="f3-neck" style="width:${w[i - 1]}%"><div class="f3-fill" style="background:${C[i][1]};clip-path:polygon(0 0,100% 0,${100 - inset}% 100%,${inset}% 100%)"></div><span class="f3-pill num">▾ ${cv}%</span></div>`;
+        }
+        h += `<div class="f3-stage has-tip" data-tip="${label}: ${n} מתוך ${c.leads} לידים (${Math.round(n / c.leads * 100)}%)" tabindex="0" style="width:${w[i]}%;border-color:${C[i][0]};background:${C[i][1]}">
+          <div class="f3n num" style="color:${C[i][0]}">${n}</div>
+          <div class="f3l" style="color:${C[i][0]}">${label} <span class="f3p num">· ${Math.round(n / c.leads * 100)}%</span></div>
+        </div>`;
+      });
       return `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>
-        <div class="fn-wrap has-tip" data-tip="המשפך מראה כמה לידים עברו כל שלב, מפנייה ראשונה ועד תשלום; האחוזים מחושבים מכלל הלידים" tabindex="0">
-        ${stages.map(([label, n], i) => {
-          const topW = i ? widths[i - 1] : 100, botW = widths[i];
-          const poly = `polygon(${50 - topW / 2}% 0, ${50 + topW / 2}% 0, ${50 + botW / 2}% 100%, ${50 - botW / 2}% 100%)`;
-          const conv = i ? `<span class="fn-conv2 num">▾ ${Math.round(n / stages[i - 1][1] * 100)}%</span>` : '';
-          return `<div class="fn-stage">
-            ${conv}
-            <div class="fn-bar" title="${label}: ${n} מתוך ${c.leads} לידים (${Math.round(n / c.leads * 100)}%)" style="clip-path:${poly};background:${colors[i]}">
-              <span class="fn-in"><b class="num">${n}</b><small>${label}</small></span>
-            </div>
-          </div>`;
-        }).join('')}
-        </div>
+        <div class="f3-wrap">${h}</div>
         <div class="cell-sub" style="margin-top:10px;text-align:center">נשירה עיקרית: ${Math.round(100 - c.booked / c.leads * 100)}% בין ליד לתור</div>
       </div>`;
     };
     el.innerHTML = `
       <div class="dash-2col">${funnelCard(BOARD.campaigns[0])}${funnelCard(BOARD.campaigns[1])}</div>
-      <div class="cell-sub" style="margin-top:10px">בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
+      <div class="cell-sub" style="margin-top:10px">המשפך מראה כמה לידים עברו כל שלב, מפנייה ראשונה ועד תשלום; האחוזים בין הכרטיסים הם מעבר משלב לשלב. בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
   }
 
   function boardAttention(el) {
