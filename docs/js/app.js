@@ -1175,9 +1175,18 @@
           <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים</span></div>
         </div>
         <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים לפי ערוץ בתקופה הנבחרת; המרה = אחוז הלידים שקבעו תור, ועלות להמרה = הוצאת הערוץ חלקי קובעי התור" tabindex="0"><h3>לידים לפי ערוץ</h3>
-          ${P.channels.map(ch => `<div class="toplist-row chan-row">
-            <span>${ch.name}<span class="chan-sub num">המרה ${ch.conv} · ${ch.cost} להמרה</span></span><span class="n num">${ch.n}</span>
-          </div>`).join('')}
+          <div class="chan-grid">${P.channels.map(ch => {
+            const cv = parseInt(ch.conv);
+            const cc = cv >= 28 ? '#16a34a' : cv >= 21 ? '#d97706' : '#dc2626';
+            return `<div class="chan-tile" style="--ac:${cc}">
+              <div class="chan-name">${ch.name}</div>
+              <div class="chan-n num">${ch.n}<span class="chan-nl">לידים</span></div>
+              <div class="chan-stats">
+                <div class="chan-stat"><b class="num" style="color:${cc}">${ch.conv}</b><span>אחוז המרה</span></div>
+                <div class="chan-stat"><b class="num">${ch.cost}</b><span>עלות להמרה</span></div>
+              </div>
+            </div>`;
+          }).join('')}</div>
         </div>
       </div>
       <div class="guide">חלק מהמספרים חלקיים: סטטוסי לידים מתעדכנים כרגע ידנית, ו-187 מודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</div>`;
@@ -1234,17 +1243,19 @@
   function boardFunnel(el) {
     const funnelCard = (c) => {
       const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
-      const opacities = [1, .82, .66, .52];
-      const widths = stages.map(([, n]) => Math.max(12, Math.round(n / c.leads * 100)));
+      const colors = ['#4a1b66', '#7c3aed', '#d97706', '#16a34a'];
+      const widths = stages.map(([, n]) => Math.min(100, 30 + 0.7 * Math.round(n / c.leads * 100)));
       return `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>
         <div class="fn-wrap has-tip" data-tip="המשפך מראה כמה לידים עברו כל שלב, מפנייה ראשונה ועד תשלום; האחוזים מחושבים מכלל הלידים" tabindex="0">
         ${stages.map(([label, n], i) => {
           const topW = i ? widths[i - 1] : 100, botW = widths[i];
           const poly = `polygon(${50 - topW / 2}% 0, ${50 + topW / 2}% 0, ${50 + botW / 2}% 100%, ${50 - botW / 2}% 100%)`;
-          const conv = i ? `<span class="fn-pct num">▾ ${Math.round(n / stages[i - 1][1] * 100)}% מהשלב הקודם</span>` : '';
+          const conv = i ? `<span class="fn-conv2 num">▾ ${Math.round(n / stages[i - 1][1] * 100)}%</span>` : '';
           return `<div class="fn-stage">
-            <div class="fn-label">${label}<b class="num">${n}</b><span class="fn-pct num">${Math.round(n / c.leads * 100)}%</span>${conv}</div>
-            <div class="fn-bar" title="${label}: ${n} מתוך ${c.leads} לידים" style="clip-path:${poly};opacity:${opacities[i]}"></div>
+            ${conv}
+            <div class="fn-bar" title="${label}: ${n} מתוך ${c.leads} לידים (${Math.round(n / c.leads * 100)}%)" style="clip-path:${poly};background:${colors[i]}">
+              <span class="fn-in"><b class="num">${n}</b><small>${label}</small></span>
+            </div>
           </div>`;
         }).join('')}
         </div>

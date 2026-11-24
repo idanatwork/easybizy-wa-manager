@@ -330,12 +330,13 @@ pre.payload {
 .metric .m-label{font-size:12px;color:var(--muted)}
 .metric .m-value{font-weight:800;font-size:17px;line-height:1.25}
 .metric .m-value.big{color:var(--green-dark)}
-.fn-wrap{display:flex;flex-direction:column;gap:3px;margin-top:6px}
-.fn-stage{text-align:center}
-.fn-label{font-weight:600;font-size:13.5px;margin-bottom:3px}
-.fn-label b{font-size:16px;margin-inline-start:4px}
-.fn-label .fn-pct{color:var(--muted);font-weight:400;font-size:12px;margin-inline-start:8px}
-.fn-bar{height:46px;background:var(--green);margin-inline:auto}
+.fn-wrap{display:flex;flex-direction:column;margin-top:6px}
+.fn-stage{position:relative;text-align:center}
+.fn-bar{height:56px;margin-inline:auto;display:flex;align-items:center;justify-content:center;color:#fff}
+.fn-in{display:flex;align-items:baseline;gap:7px}
+.fn-in b{font-size:24px;font-weight:800}
+.fn-in small{font-size:13px;font-weight:700;opacity:.92}
+.fn-conv2{position:absolute;top:0;inset-inline-start:50%;transform:translate(50%,-50%);background:var(--card);border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-size:11px;font-weight:700;color:var(--muted);z-index:2;white-space:nowrap}
 .msg-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--gray-soft);margin:8px 0 2px}
 .msg-bar span{display:block;height:100%}
 .sys-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -496,3 +497,11 @@ pre.payload {
 button.board-tab{border:1px solid var(--line);background:var(--card);cursor:pointer;font:inherit}
 .range-box{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
 .range-box input{font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.chan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.chan-tile{border:1px solid var(--line);border-top:3px solid var(--ac);border-radius:10px;padding:10px 13px;background:var(--bg)}
+.chan-name{font-weight:700;font-size:13px;min-height:2em}
+.chan-n{font-size:30px;font-weight:800;color:var(--ac);line-height:1.15}
+.chan-nl{font-size:12px;font-weight:600;color:var(--muted);margin-inline-start:6px}
+.chan-stats{display:flex;gap:18px;margin-top:4px}
+.chan-stat b{font-size:15px;font-weight:800}
+.chan-stat span{display:block;font-size:11px;color:var(--muted)}
