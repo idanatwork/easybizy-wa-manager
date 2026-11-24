@@ -76,8 +76,8 @@
   function shell(active, inner, clientNav) {
     const who = `
           <div class="who">
-            ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>`}
-            <div style="margin-top:6px"><a href="#" id="logout">התנתקות</a></div>
+            ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : Api.isLoggedIn() ? `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>` : '<span class="demo-pill">תצוגת דמו</span>'}
+            ${Api.isLoggedIn() ? '<div style="margin-top:6px"><a href="#" id="logout">התנתקות</a></div>' : ''}
           </div>`;
     const nav = clientNav ? `
           <a class="back-link" href="#/clients" style="padding:4px 12px">→ כל הלקוחות</a>
@@ -87,7 +87,8 @@
           </div>
           ${CLIENT_SECTIONS.map(([k, l, ico]) => `<a class="nav-item ${clientNav.section === k ? 'active' : ''}" href="#/client/${clientNav.client.id}/${k}"><span class="ico">${ico}</span> ${l}</a>`).join('')}`
         : `
-          <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>`;
+          <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
+          ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>` : ''}`;
     root.innerHTML = `
       <div class="layout">
         <div class="topbar">
@@ -104,7 +105,8 @@
         </aside>
         <main class="main">${inner}</main>
       </div>`;
-    document.getElementById('logout').onclick = (e) => { e.preventDefault(); Api.logout(); };
+    const logoutEl = document.getElementById('logout');
+    if (logoutEl) logoutEl.onclick = (e) => { e.preventDefault(); Api.logout(); };
     document.getElementById('theme-toggle').onclick = () => Theme.toggle();
     const closeNav = () => document.body.classList.remove('nav-open');
     document.getElementById('nav-burger').onclick = () => document.body.classList.toggle('nav-open');
@@ -986,11 +988,184 @@
   }
 
   /* ---------------- bots overview page ---------------- */
+  /* ---------------- management board (demo, sample data only) ---------------- */
+  const BOARD_TABS = [
+    ['overview', 'מבט כללי'], ['campaigns', 'קמפיינים'], ['funnel', 'משפך'],
+    ['attention', 'דורשים טיפול'], ['messages', 'הודעות אוטומטיות'], ['systems', 'מצב המערכות'],
+  ];
+  const ils = (n) => '\u20AA' + n.toLocaleString('he-IL');
+  const BOARD = {
+    updated: 'עודכן לפני 12 דקות',
+    kpis: [
+      { label: 'לידים היום', value: '9', delta: '+2 מול אתמול', up: true },
+      { label: 'לידים החודש', value: '168', delta: '+8% מול חודש קודם', up: true },
+      { label: 'תורים שנקבעו השבוע', value: '14', delta: '+3 מול שבוע קודם', up: true },
+      { label: 'עסקאות נסגרו החודש', value: '11', delta: '\u22121 מול חודש קודם', up: false },
+      { label: 'הכנסה החודש', value: ils(86400), delta: '+15% מול חודש קודם', up: true },
+      { label: 'הוצאת פרסום החודש', value: ils(12300), delta: 'החזר 7.0 על ההוצאה', up: true },
+    ],
+    leadDays: [6, 8, 5, 9, 7, 4, 10, 8, 6, 11, 9, 5, 7, 9],
+    channels: [['מודעות מטא בוואטסאפ', 88], ['אורגני / וואטסאפ ישיר', 52], ['אתר', 14], ['שיחה שלא נענתה', 9], ['MedReviews', 5]],
+    campaigns: [
+      { name: 'פייסטייט \u2013 נשים +35 \u2013 וידאו 1', channel: 'מטא \u00B7 וואטסאפ', spend: 4200, leads: 38, booked: 12, arrived: 9, paid: 6, revenue: 31200 },
+      { name: 'מורפיאוס 8 \u2013 נשים \u2013 תמונה 2', channel: 'מטא \u00B7 וואטסאפ', spend: 3100, leads: 26, booked: 8, arrived: 6, paid: 4, revenue: 15800 },
+      { name: 'פיסול אף \u2013 גברים \u2013 רילס 1', channel: 'מטא \u00B7 וואטסאפ', spend: 2700, leads: 19, booked: 5, arrived: 4, paid: 2, revenue: 24000 },
+      { name: 'אתר \u2013 חיפוש ממומן (גוגל)', channel: 'גוגל \u00B7 אתר', spend: 1000, leads: 14, booked: 4, arrived: 3, paid: 2, revenue: 8400 },
+      { name: 'בוסט אינסטגרם \u2013 קהל רחב', channel: 'מטא \u00B7 אינסטגרם', spend: 1300, leads: 11, booked: 2, arrived: 1, paid: 1, revenue: 3900 },
+      { name: 'אורגני / לא משויך', channel: 'אורגני', spend: 0, leads: 60, booked: 15, arrived: 11, paid: 8, revenue: 12900 },
+    ],
+    attention: [
+      { title: 'חדשים שלא קיבלו מענה', rows: [
+        { name: 'נועה כ.', phone: '050-***-**34', ago: 'לפני 3 שעות', topic: 'פייסטייט' },
+        { name: 'דן מ.', phone: '054-***-**81', ago: 'לפני 5 שעות', topic: 'בוטוקס' }] },
+      { title: 'לחצו \u201Cלקבוע ייעוץ\u201D', rows: [
+        { name: 'יעל ר.', phone: '052-***-**17', ago: 'לפני 40 דקות', topic: 'מורפיאוס 8' },
+        { name: 'אבי ש.', phone: '050-***-**63', ago: 'לפני שעתיים', topic: 'השתלת שיער' },
+        { name: 'מירי ל.', phone: '058-***-**29', ago: 'אתמול', topic: 'פייסטייט' }] },
+      { title: 'בקשות שינוי תור', rows: [
+        { name: 'רונית ב.', phone: '053-***-**92', ago: '\u201Cאפשר לדחות לשבוע הבא?\u201D', topic: 'תור ביום ה\u2033 10:30' }] },
+      { title: 'פניות מהאתר בבדיקה ידנית', rows: [
+        { name: 'כרמל ג.', phone: '054-***-**48', ago: 'שם לא תואם כרטיס קיים', topic: 'טופס האתר' },
+        { name: 'סמדר א.', phone: '050-***-**15', ago: 'שני כרטיסים לאותו מספר', topic: 'טופס האתר' }] },
+    ],
+    templates: [
+      { name: 'אישור פנייה מהאתר \u2013 נוסח 2', sent: 74, delivered: 72, answered: 31, booked: 9, unsub: 0, cost: 133 },
+      { name: 'פולואפ לליד 24 שעות \u2013 עם שם', sent: 64, delivered: 61, answered: 18, booked: 7, unsub: 1, cost: 109 },
+      { name: 'שיחה שלא נענתה', sent: 41, delivered: 40, answered: 12, booked: 3, unsub: 0, cost: 74 },
+      { name: 'הנחיות לפני טיפול פייסטייט', sent: 22, delivered: 22, answered: 6, booked: null, unsub: 0, cost: 40 },
+      { name: 'נוסח ג \u2013 תור שבוטל', sent: 9, delivered: 9, answered: 4, booked: 2, unsub: 0, cost: 16 },
+    ],
+    systems: [
+      { name: 'קליטת אירועים מאיזיביזי (webhook)', status: 'פעיל', meta: 'אירוע אחרון לפני 2 דקות' },
+      { name: 'שיוך לידים לקמפייני מטא', status: 'פעיל', meta: 'עודכן לפני 14 דקות' },
+      { name: 'חשבון וואטסאפ \u2013 איכות GREEN', status: 'פעיל', meta: 'נבדק לפני שעה' },
+      { name: 'תוסף האתר 2.5.4', status: 'פעיל', meta: 'פנייה אחרונה לפני 4 שעות' },
+      { name: 'שיחה שלא נענתה (Twilio)', status: 'פעיל', meta: 'אתמול 18:42' },
+      { name: 'MedReviews', status: 'פעיל', meta: 'לפני יומיים' },
+      { name: 'הנחיות לפני פייסטייט', status: 'פעיל', meta: 'נשלח היום 10:00' },
+      { name: 'שיוך כפתור וואטסאפ באתר', status: 'תצוגה מקדימה', meta: 'אירוע אחרון לפני שעה' },
+      { name: 'עדכון סטטוסים אוטומטי', status: 'תצוגה מקדימה', meta: 'רץ לפני 25 דקות' },
+      { name: 'הודעות לפי סטטוס', status: 'לא נבנה', meta: '\u2014' },
+    ],
+    sysErrors: 'שגיאת שליחה אחת ב-7 הימים האחרונים (whatsapp-messages.failed, אתמול)',
+  };
+
+  function viewBoard(section = 'overview') {
+    clearInterval(state.convoTimer);
+    shell('board', `
+      <div class="page-head"><h1>דשבורד ניהול</h1><span class="badge yellow">נתוני דמו</span></div>
+      <div class="board-tabs">${BOARD_TABS.map(([k, l]) => `<a class="board-tab ${section === k ? 'active' : ''}" href="#/board/${k}">${l}</a>`).join('')}</div>
+      <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 אין חיבור לנתוני קליניקה</div>
+      <div id="board-body"></div>`);
+    const body = document.getElementById('board-body');
+    ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems }[section] || boardOverview)(body);
+  }
+
+  function boardOverview(el) {
+    const maxV = Math.max(...BOARD.leadDays);
+    const bars = BOARD.leadDays.map((v, i) => `<div class="bar" title="${v} לידים"><div class="runs" style="height:${Math.round(v / maxV * 100)}%"></div></div>`).join('');
+    el.innerHTML = `
+      <div class="dash-grid">
+        ${BOARD.kpis.map(k => `<div class="stat"><div class="s-label">${k.label}</div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div></div>`).join('')}
+      </div>
+      <div class="dash-2col">
+        <div class="card" style="margin:0"><h3>לידים \u2014 14 ימים אחרונים</h3>
+          <div class="chart">${bars}</div>
+          <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים ביום</span></div>
+        </div>
+        <div class="card" style="margin:0"><h3>לידים לפי ערוץ \u2014 החודש</h3>
+          ${BOARD.channels.map(([name, n]) => `<div class="toplist-row">${name}<span class="n num">${n}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="guide">חלק מהמספרים חלקיים: סטטוסי לידים מתעדכנים כרגע ידנית, ו-187 מודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</div>`;
+  }
+
+  function boardCampaigns(el) {
+    const metric = (label, value, big) => `<div class="metric"><div class="m-label">${label}</div><div class="m-value num ${big ? 'big' : ''}">${value}</div></div>`;
+    el.innerHTML = `
+      <div class="board-tabs" style="margin-top:0">
+        <span class="board-tab active">החודש</span><span class="board-tab" style="opacity:.55">7 ימים</span><span class="board-tab" style="opacity:.55">90 ימים</span>
+        <span class="board-tab" style="opacity:.55">ערוץ: הכל</span><span class="board-tab" style="opacity:.55">טיפול: הכל</span>
+      </div>
+      ${BOARD.campaigns.map(c => {
+        const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '\u2014';
+        const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : '\u2014';
+        const roas = c.spend ? (c.revenue / c.spend).toFixed(1) : '\u2014';
+        return `<div class="card" style="margin:0 0 12px">
+          <div class="top" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h4 style="margin:0">${c.name}</h4><span class="badge blue">${c.channel}</span></div>
+          <div class="metric-grid">
+            ${metric('הוצאה', ils(c.spend))}${metric('לידים', c.leads)}${metric('עלות לליד', cpl)}${metric('קבעו תור', c.booked)}
+            ${metric('הגיעו', c.arrived)}${metric('שילמו', c.paid)}${metric('הכנסה', ils(c.revenue))}${metric('החזר על ההוצאה', roas === '\u2014' ? '\u2014' : '\u00D7' + roas, true)}
+          </div>
+          <div class="cell-sub" style="margin-top:8px">עלות למטופל משלם: ${cpp}</div>
+        </div>`;
+      }).join('')}`;
+  }
+
+  function boardFunnel(el) {
+    const funnelCard = (c) => {
+      const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
+      return `<div class="card" style="margin:0"><h3 style="font-size:15px">${c.name}</h3>
+        ${stages.map(([label, n], i) => {
+          const w = Math.max(3, Math.round(n / c.leads * 100));
+          const conv = i ? Math.round(n / stages[i - 1][1] * 100) + '% מהשלב הקודם' : '100%';
+          return `<div class="funnel-row"><span class="f-label">${label}</span>
+            <span class="f-track"><span class="f-fill" style="width:${w}%"></span></span>
+            <span class="f-val"><b class="num">${n}</b> <span class="f-conv">${conv}</span></span></div>`;
+        }).join('')}
+        <div class="cell-sub" style="margin-top:8px">נשירה עיקרית: ${Math.round(100 - c.booked / c.leads * 100)}% בין ליד לתור</div>
+      </div>`;
+    };
+    el.innerHTML = `
+      <div class="dash-2col">${funnelCard(BOARD.campaigns[0])}${funnelCard(BOARD.campaigns[1])}</div>
+      <div class="cell-sub" style="margin-top:10px">בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
+  }
+
+  function boardAttention(el) {
+    el.innerHTML = `<div class="dash-2col">
+      ${BOARD.attention.map(g => `<div class="card" style="margin:0"><h3 style="font-size:15px">${g.title} <span class="badge">${g.rows.length}</span></h3>
+        ${g.rows.map(r => `<div class="att-row">
+          <div class="a-top"><span class="a-name">${r.name}</span><span class="num cell-sub" style="direction:ltr">${r.phone}</span><span class="badge blue">${r.topic}</span></div>
+          <div class="cell-sub">${r.ago}</div>
+        </div>`).join('')}
+      </div>`).join('')}
+    </div>
+    <div class="guide">במערכת המלאה הרשימה נקראת ישירות מאיזיביזי בכל טעינה; פרטי מטופלים לא נשמרים בדשבורד.</div>`;
+  }
+
+  function boardMessages(el) {
+    const metric = (label, value) => `<div class="metric"><div class="m-label">${label}</div><div class="m-value num">${value}</div></div>`;
+    el.innerHTML = BOARD.templates.map(t => {
+      const dp = Math.round(t.delivered / t.sent * 100), ap = Math.round(t.answered / t.sent * 100), bp = t.booked ? Math.round(t.booked / t.sent * 100) : 0;
+      return `<div class="card" style="margin:0 0 12px">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h4 style="margin:0">${t.name}</h4><span class="badge">תבנית</span></div>
+        <div class="msg-bar" title="נמסרו / ענו / קבעו תור">
+          <span style="width:${dp}%;background:var(--blue)"></span><span style="width:${ap}%;background:var(--green)"></span><span style="width:${bp}%;background:var(--mint)"></span>
+        </div>
+        <div class="metric-grid">
+          ${metric('נשלחו', t.sent)}${metric('נמסרו', `${t.delivered} (${dp}%)`)}${metric('ענו', `${t.answered} (${ap}%)`)}
+          ${metric('קבעו תור', t.booked == null ? '\u2014' : t.booked)}${metric('ביקשו הסרה', t.unsub)}${metric('עלות', ils(t.cost))}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function boardSystems(el) {
+    const badge = (s) => s === 'פעיל' ? '<span class="badge green"><span class="dot"></span>פעיל</span>'
+      : s === 'תצוגה מקדימה' ? '<span class="badge yellow">תצוגה מקדימה</span>' : '<span class="badge">לא נבנה</span>';
+    el.innerHTML = `
+      <div class="card" style="margin:0 0 12px"><h3>רכיבי המערכת</h3>
+        ${BOARD.systems.map(s => `<div class="sys-row"><span class="sys-name">${s.name}</span>${badge(s.status)}<span class="sys-meta">${s.meta}</span></div>`).join('')}
+      </div>
+      <div class="card" style="margin:0"><h3>תקלות</h3><div class="cell-sub">${BOARD.sysErrors}</div></div>`;
+  }
+
   /* ---------------- router ---------------- */
   function route() {
     const h = location.hash || '#/clients';
-    if (!Api.isLoggedIn() && h !== '#/login') return viewLogin();
     const [, page, a, b] = h.split('/');
+    if (page === 'board') return viewBoard(a || 'overview');
+    if (!Api.isLoggedIn() && h !== '#/login') return viewLogin();
     if (h === '#/login') return viewLogin();
     if (page === 'clients') return viewClients(a === 'new');
     if (page === 'activity') return viewActivityPage();
