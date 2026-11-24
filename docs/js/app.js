@@ -567,14 +567,35 @@
 
 
   /* ---- dashboard tab ---- */
+
+  // Reference-style chart: olive bars, dashed gridlines, values on top, white hover tooltip
+  function c2chart(values, opts = {}) {
+    const labels = opts.labels || [];
+    const seg = opts.seg || null;
+    const totals = values.map((v, i) => v + (seg ? seg[i] : 0));
+    const mx = Math.max(1, ...totals);
+    const step = Math.max(1, Math.ceil(mx / 4));
+    const vmax = step * 4;
+    const ylabels = [4, 3, 2, 1, 0].map(k => `<span style="top:${k * 25}%">${vmax - k * step}</span>`).join('');
+    const grid = [0, 1, 2, 3].map(k => `<div class="c2-grid" style="top:${k * 25}%"></div>`).join('');
+    const bars = values.map((v, i) => {
+      const h = Math.round(totals[i] / vmax * 100);
+      const tip = opts.tip ? opts.tip(i) : String(v);
+      const errSeg = seg && seg[i] ? `<span class="seg-err" style="height:${Math.round(seg[i] / totals[i] * 100)}%"></span>` : '';
+      return `<div class="c2-col" data-tip="${tip}"><span class="c2-val num">${v}</span><div class="c2-bar" style="height:${h}%">${errSeg}</div></div>`;
+    }).join('');
+    const xlab = labels.map(l => `<span>${l}</span>`).join('');
+    const conv = opts.convRow ? `<div class="c2-x c2-conv">${opts.convRow.map(l => `<span>${l}</span>`).join('')}</div>` : '';
+    return `<div class="c2"><div class="c2-y">${ylabels}</div><div class="c2-plot">${grid}<div class="c2-axis"></div><div class="c2-bars">${bars}</div></div></div><div class="c2-x">${xlab}</div>${conv}`;
+  }
+
   async function renderDash(el, client) {
     const { dash } = await Api.getDash(client.id);
-    const maxV = Math.max(1, ...dash.days.map(d => d.runs + d.errors));
-    const bars = dash.days.map(d => {
-      const rh = Math.round(d.runs / maxV * 100), eh = Math.round(d.errors / maxV * 100);
-      return `<div class="bar" title="${d.date}: ${d.runs} ריצות, ${d.errors} שגיאות">${d.errors ? `<div class="errs" style="height:${eh}%"></div>` : ''}${d.runs ? `<div class="runs" style="height:${rh}%"></div>` : ''}</div>`;
-    }).join('');
-    const xlabels = dash.days.map((d, i) => (i % 2 === 0 ? `<span>${d.date.slice(8)}.${d.date.slice(5,7)}</span>` : '<span></span>')).join('');
+    const chartHtml = c2chart(dash.days.map(d => d.runs), {
+      seg: dash.days.map(d => d.errors),
+      labels: dash.days.map((d, i) => (i % 2 === 0 ? `${d.date.slice(8)}.${d.date.slice(5, 7)}` : '')),
+      tip: (i) => `${dash.days[i].date}\nריצות: ${dash.days[i].runs}\nשגיאות: ${dash.days[i].errors}`,
+    });
     el.innerHTML = `
       <div class="dash-grid">
         <div class="stat"><div class="s-label">חיבור</div><div class="s-value">${statusBadge(client.connection_status)}</div><div class="s-sub">${client.last_event_at ? 'webhook אחרון ' + fmtAgo(client.last_event_at) : 'עדיין לא התקבל webhook'}</div></div>
@@ -583,8 +604,8 @@
       </div>
       <div class="dash-2col">
         <div class="card" style="margin:0"><h3>ריצות — 14 ימים אחרונים</h3>
-          <div class="chart">${bars}</div><div class="chart-x">${xlabels}</div>
-          <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>ריצות (${dash.runs_30d} ב-30 ימים)</span><span><span class="dotk" style="background:var(--red)"></span>שגיאות (${dash.errors_30d})</span></div>
+          ${chartHtml}
+          <div class="chart-legend"><span><span class="dotk" style="background:#5b6b4a"></span>ריצות (${dash.runs_30d} ב-30 ימים)</span><span><span class="dotk" style="background:#c0564d"></span>שגיאות (${dash.errors_30d})</span></div>
         </div>
         <div class="card" style="margin:0"><h3>פעולות מהירות</h3>
           <div class="quick-actions" style="flex-direction:column;align-items:stretch">
@@ -1158,8 +1179,15 @@
   function boardOverview(el) {
     const pk = state.boardPeriod || 'month';
     const P = BOARD.periods[pk] || BOARD.periods.month;
-    const maxV = Math.max(...P.leadDays);
-    const bars = P.leadDays.map((v) => `<div class="bar" title="${v} לידים"><div class="runs" style="height:${Math.round(v / maxV * 100)}%"></div></div>`).join('');
+    const chartHtml = c2chart(P.leadDays, {
+      labels: P.leadDays.map((_, i) => (i % 2 === 0 ? (pk === 'day' ? `${8 + i}:00` : String(i + 1)) : '')),
+      tip: (i) => `${P.leadDays[i]} לידים`,
+    });
+    const pal = ['#4a1b66', '#7c3aed', '#d97706', '#16a34a', '#0891b2'];
+    const chanTot = P.channels.reduce((a, ch) => a + ch.n, 0);
+    let _acc = 0;
+    const donutSegs = P.channels.map((ch, i) => { const f = _acc / chanTot * 360; _acc += ch.n; return `${pal[i % 5]} ${f}deg ${_acc / chanTot * 360}deg`; }).join(', ');
+    const donutHtml = `<div class="donut-wrap"><div class="donut" style="background:conic-gradient(${donutSegs})"><div class="hole"><div><b class="num">${chanTot}</b><small>לידים</small></div></div></div><div class="donut-legend">${P.channels.map((ch, i) => `<div class="dl-row"><span class="dotk" style="background:${pal[i % 5]}"></span><span class="dl-name">${ch.name}</span><b class="num">${ch.n} · ${Math.round(ch.n / chanTot * 100)}%</b></div>`).join('')}</div></div>`;
     const rangeNote = pk === 'custom' ? `<span class="range-box"><input type="date" id="rng-from" value="2026-11-01"> \u05E2\u05D3 <input type="date" id="rng-to" value="2026-11-24"></span>` : '';
     el.innerHTML = `
       <div class="board-tabs" style="margin-top:0;flex-wrap:wrap">
@@ -1167,14 +1195,14 @@
         ${rangeNote}
       </div>
       <div class="dash-grid">
-        ${P.kpis.map(k => `<div class="stat has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0"><div class="s-label">${k.label}</div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div></div>`).join('')}
+        ${P.kpis.map((k, i) => `<div class="stat kpi has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0" style="--ac:${['#2563eb', '#2563eb', '#d97706', '#16a34a', '#7c3aed', '#dc2626'][i % 6]}"><div class="s-label">${k.label}<span class="info-i">i</span></div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div><span class="kpi-chip ${k.up ? 'ok' : 'bad'}">${k.up ? 'מגמה חיובית' : 'דורש טיפול'}</span></div>`).join('')}
       </div>
       <div class="dash-2col">
         <div class="card" style="margin:0"><h3>${P.chartTitle}</h3>
-          <div class="chart has-tip" data-tip="מספר הלידים שנכנסו בכל יחידת זמן בתקופה הנבחרת" tabindex="0">${bars}</div>
-          <div class="chart-legend"><span><span class="dotk" style="background:var(--green)"></span>לידים</span></div>
+          <div class="has-tip" data-tip="מספר הלידים שנכנסו בכל יחידת זמן בתקופה הנבחרת" tabindex="0">${chartHtml}</div>
         </div>
         <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים לפי ערוץ בתקופה הנבחרת; המרה = אחוז הלידים שקבעו תור, ועלות להמרה = הוצאת הערוץ חלקי קובעי התור" tabindex="0"><h3>לידים לפי ערוץ</h3>
+          ${donutHtml}
           <div class="chan-grid">${P.channels.map(ch => {
             const cv = parseInt(ch.conv);
             const cc = cv >= 28 ? '#16a34a' : cv >= 21 ? '#d97706' : '#dc2626';
@@ -1189,7 +1217,7 @@
           }).join('')}</div>
         </div>
       </div>
-      <div class="guide">חלק מהמספרים חלקיים: סטטוסי לידים מתעדכנים כרגע ידנית, ו-187 מודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</div>`;
+      <div class="alert-strip"><span class="as-ico">⚠</span><span><b>שים לב:</b> חלק מהמספרים חלקיים — סטטוסי לידים מתעדכנים כרגע ידנית, ו-187 מודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</span></div>`;
     el.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { state.boardPeriod = b.dataset.period; boardOverview(el); });
     const rf = document.getElementById('rng-from'), rt = document.getElementById('rng-to');
     if (rf) rf.onchange = rt.onchange = () => boardOverview(el);
@@ -1199,9 +1227,9 @@
     const sum = (f) => BOARD.campaigns.reduce((a, c) => a + c[f], 0);
     const totals = { spend: sum('spend'), leads: sum('leads'), booked: sum('booked'), paid: sum('paid'), revenue: sum('revenue') };
     const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
-      <div class="ac-num num">${value}</div><div class="ac-label">${label}</div></div>`;
+      <div class="ac-num num">${value}</div><div class="ac-label">${label}<span class="info-i">i</span></div></div>`;
     const tile = (label, value, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
-      <div class="msg-num num" style="font-size:20px">${value}</div><div class="msg-label">${label}</div></div>`;
+      <div class="msg-num num" style="font-size:20px">${value}</div><div class="msg-label">${label}<span class="info-i">i</span></div></div>`;
     el.innerHTML = `
       <div class="board-tabs" style="margin-top:0">
         <span class="board-tab active">\u05D4\u05D7\u05D5\u05D3\u05E9</span><span class="board-tab" style="opacity:.55">7 \u05D9\u05DE\u05D9\u05DD</span><span class="board-tab" style="opacity:.55">90 \u05D9\u05DE\u05D9\u05DD</span>
@@ -1214,6 +1242,17 @@
         ${counter('\u05E9\u05D9\u05DC\u05DE\u05D5', totals.paid, '#16a34a')}
         ${counter('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(totals.revenue), '#7c3aed')}
         ${counter('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', '\u00D7' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
+      </div>
+      <div class="card" style="margin:0 0 12px"><h3>התקדמות לידים לפי קמפיין</h3>
+        ${BOARD.campaigns.map(c => {
+          const seg = (n, col) => n > 0 ? `<span style="width:${n / c.leads * 100}%;background:${col}"></span>` : '';
+          return `<div class="hbar-row has-tip" data-tip="${c.name}: ${c.leads} לידים · ${c.booked} קבעו תור · ${c.arrived} הגיעו · ${c.paid} שילמו" tabindex="0">
+            <span class="hbar-name">${c.name}</span>
+            <span class="hbar-track">${seg(c.paid, '#15803d')}${seg(c.arrived - c.paid, '#86d3a2')}${seg(c.booked - c.arrived, '#e9b949')}${seg(c.leads - c.booked, '#ddd9e8')}</span>
+            <b class="hbar-n num">${c.leads}</b>
+          </div>`;
+        }).join('')}
+        <div class="chart-legend"><span><span class="dotk" style="background:#15803d"></span>שילמו</span><span><span class="dotk" style="background:#86d3a2"></span>הגיעו</span><span><span class="dotk" style="background:#e9b949"></span>קבעו תור</span><span><span class="dotk" style="background:#ddd9e8"></span>לא קבעו תור</span></div>
       </div>
       ${BOARD.campaigns.map(c => {
         const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '\u2014';
@@ -1272,7 +1311,7 @@
     el.innerHTML = `
       <div class="att-counters">
         ${BOARD.attention.map((g, i) => `<div class="att-counter has-tip" data-tip="${TIP[g.title] || ''}" tabindex="0" style="--ac:${colors[i % 4]}">
-          <div class="ac-num num">${g.rows.length}</div><div class="ac-label">${g.title}</div>
+          <div class="ac-num num">${g.rows.length}</div><div class="ac-label">${g.title}<span class="info-i">i</span></div>
         </div>`).join('')}
       </div>
       ${BOARD.attention.map((g, i) => `<details class="att-list card" style="--ac:${colors[i % 4]};margin:0 0 12px">
@@ -1287,7 +1326,7 @@
 
   function boardMessages(el) {
     const tile = (label, value, sub, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
-      <div class="msg-num num">${value}</div><div class="msg-label">${label}</div>${sub ? `<div class="msg-sub num">${sub}</div>` : ''}
+      <div class="msg-num num">${value}</div><div class="msg-label">${label}<span class="info-i">i</span></div>${sub ? `<div class="msg-sub num">${sub}</div>` : ''}
     </div>`;
     el.innerHTML = BOARD.templates.map(t => {
       const ap = Math.round(t.answered / t.sent * 100);
@@ -1315,13 +1354,13 @@
     el.innerHTML = `
       <div class="att-counters" style="grid-template-columns:repeat(3,1fr)">
         ${counters.map(([label, n, c]) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${c}">
-          <div class="ac-num num">${n}</div><div class="ac-label">${label}</div>
+          <div class="ac-num num">${n}</div><div class="ac-label">${label}<span class="info-i">i</span></div>
         </div>`).join('')}
       </div>
       <div class="sys-grid">
         ${BOARD.systems.map(s => `<div class="sys-tile"><div class="sys-tile-top"><span class="sys-name">${s.name}</span>${badge(s.status)}</div><span class="sys-meta">${s.meta}</span></div>`).join('')}
       </div>
-      <div class="card" style="margin:14px 0 0"><h3>תקלות</h3><div class="cell-sub">${BOARD.sysErrors}</div></div>`;
+      <div class="alert-strip" style="margin-top:14px"><span class="as-ico">⚠</span><span><b>תקלות:</b> ${BOARD.sysErrors}</span></div>`;
   }
 
   /* ---------------- router ---------------- */
