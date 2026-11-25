@@ -73,8 +73,9 @@
 
   /* active: 'clients' for the global list. clientNav: { client, section } renders
      the sidebar as that client's menu instead. */
-  function shell(active, inner, clientNav, brand) {
-    const who = `
+  function shell(active, inner, clientNav, brand, screen) {
+    const who = brand === 'clinic' || brand === 'tech' ? `
+          <div class="who"><span class="demo-pill">תצוגת דמו</span></div>` : `
           <div class="who">
             ${Api.demoMode ? '<span class="demo-pill">מצב הדגמה</span> Tech Mate · עידן' : Api.isLoggedIn() ? `<span class="num" style="font-size:12px">${esc(sessionStorage.getItem('wa_email') || '')}</span>` : '<span class="demo-pill">תצוגת דמו</span>'}
             ${Api.isLoggedIn() ? '<div style="margin-top:6px"><a href="#" id="logout">התנתקות</a></div>' : ''}
@@ -87,32 +88,46 @@
           </div>
           ${CLIENT_SECTIONS.map(([k, l, ico]) => `<a class="nav-item ${clientNav.section === k ? 'active' : ''}" href="#/client/${clientNav.client.id}/${k}"><span class="ico">${ico}</span> ${l}</a>`).join('')}`
         : brand === 'clinic' ? `
-          <a class="nav-item ${active === 'board' && !/#\/board\/(mapping|fieldmap|workplan)/.test(location.hash) ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>
-          <a class="nav-item ${location.hash.startsWith('#/board/mapping') ? 'active' : ''}" href="#/board/mapping"><span class="ico">⛓</span> מיפוי קיים כיום</a>
-          <a class="nav-item ${location.hash.startsWith('#/board/fieldmap') ? 'active' : ''}" href="#/board/fieldmap"><span class="ico">▤</span> מיפוי שדות הדשבורד</a>
-          <a class="nav-item ${location.hash.startsWith('#/board/workplan') ? 'active' : ''}" href="#/board/workplan"><span class="ico">▦</span> משימות להמשך (מהאפיון)</a>`
+          <a class="nav-item ${screen === 'overview' ? 'active' : ''}" href="#/"><span class="ico">◔</span> סקירה כללית</a>
+          <a class="nav-item ${screen === 'attention' ? 'active' : ''}" href="#/attention"><span class="ico">⚑</span> דורש טיפול <span class="nav-badge num">${ATTN_TOTAL()}</span></a>
+          <a class="nav-item ${screen === 'channels' ? 'active' : ''}" href="#/channels"><span class="ico">◫</span> ערוצים וקמפיינים</a>
+          <a class="nav-item ${screen === 'messages' ? 'active' : ''}" href="#/messages"><span class="ico">✉</span> הודעות אוטומטיות</a>
+          <a class="nav-item ${screen === 'status' ? 'active' : ''}" href="#/status"><span class="ico">▣</span> סטטוס</a>`
+        : brand === 'tech' ? `
+          <a class="back-link" href="#/" style="padding:4px 12px">→ דשבורד הלקוח</a>
+          <div class="client-nav-head"><div class="cn-name">אזור טכני</div><span class="badge yellow">דמו</span></div>
+          ${TECH_PAGES.map(([k, l]) => `<a class="nav-item ${screen === k ? 'active' : ''}" href="#/tech${k === 'home' ? '' : '/' + k}"><span class="ico">▸</span> ${l}</a>`).join('')}`
         : `
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
-          ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item ${active === 'board' ? 'active' : ''}" href="#/board"><span class="ico">◔</span> דשבורד ניהול (דמו)</a>` : ''}`;
+          ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item" href="#/"><span class="ico">◔</span> דשבורד קליניקה (דמו)</a><a class="nav-item" href="#/tech"><span class="ico">⚙</span> אזור טכני (דמו)</a>` : ''}`;
     root.innerHTML = `
       <div class="layout">
         <div class="topbar">
           <button class="icon-btn" id="nav-burger" title="תפריט">☰</button>
-          ${brand === 'clinic'
+          ${brand === 'clinic' || brand === 'tech'
             ? '<span class="brand"><img class="logo brand-light-only" src="assets/clinic-logo-dark.png" alt="Dr. Ziv Peretz" style="width:auto;height:28px;border-radius:0"><img class="logo brand-dark-only" src="assets/clinic-logo-white.png" alt="Dr. Ziv Peretz" style="width:auto;height:28px;border-radius:0"> דשבורד ניהול</span>'
             : '<span class="brand"><img class="logo" src="assets/logo-icon.png" alt="Tech Mate"> WhatsApp Manager</span>'}
+          ${brand === 'clinic' ? `<span class="tp-pills">${CPERIODS.map(([k, l]) => `<a class="tp-pill ${curPeriod() === k ? 'active' : ''}" href="${periodUrl(k)}">${l}</a>`).join('')}</span><span class="upd"><span class="sdot ok"></span>${CLINIC.updatedAgo}</span>` : ''}
           <button class="icon-btn" id="theme-toggle" title="מצב כהה / בהיר">◐</button>
         </div>
         <div class="nav-overlay" id="nav-overlay"></div>
         <aside class="sidebar">
-          ${brand === 'clinic'
-            ? '<div class="brand column"><img class="logo-lg brand-light-only" src="assets/clinic-logo-dark.png" alt="Dr. Ziv Peretz" style="width:120px;border-radius:0"><img class="logo-lg brand-dark-only" src="assets/clinic-logo-white.png" alt="Dr. Ziv Peretz" style="width:120px;border-radius:0"><span class="brand-name">דשבורד ניהול<span class="brand-sub">Dr. Ziv Peretz · Aesthetic Clinic</span></span></div>'
+          ${brand === 'clinic' || brand === 'tech'
+            ? `<div class="brand column"><img class="logo-lg brand-light-only" src="assets/clinic-logo-dark.png" alt="Dr. Ziv Peretz" style="width:120px;border-radius:0"><img class="logo-lg brand-dark-only" src="assets/clinic-logo-white.png" alt="Dr. Ziv Peretz" style="width:120px;border-radius:0"><span class="brand-name">${brand === 'tech' ? 'אזור טכני' : 'דשבורד ניהול'}<span class="brand-sub">Dr. Ziv Peretz · Aesthetic Clinic</span></span></div>`
             : '<div class="brand column"><img class="logo-lg" src="assets/logo-icon.png" alt="Tech Mate"><span class="brand-name">WhatsApp Manager<span class="brand-sub">for EasyBizy</span></span></div>'}
           ${nav}
           <div class="spacer"></div>
           ${who}
         </aside>
         <main class="main">${inner}</main>
+        ${brand === 'clinic' ? `
+        <nav class="bottomnav">
+          <a href="#/" class="${screen === 'overview' ? 'active' : ''}"><span class="bn-ico">◔</span>סקירה</a>
+          <a href="#/attention" class="${screen === 'attention' ? 'active' : ''}"><span class="bn-ico">⚑</span>דורש טיפול<b class="bn-badge num">${ATTN_TOTAL()}</b></a>
+          <a href="#/channels" class="${screen === 'channels' ? 'active' : ''}"><span class="bn-ico">◫</span>ערוצים</a>
+          <a href="#/messages" class="${screen === 'messages' ? 'active' : ''}"><span class="bn-ico">✉</span>הודעות</a>
+          <a href="#/status" class="${screen === 'status' ? 'active' : ''}"><span class="bn-ico">⋯</span>עוד</a>
+        </nav>` : ''}
       </div>`;
     const logoutEl = document.getElementById('logout');
     if (logoutEl) logoutEl.onclick = (e) => { e.preventDefault(); Api.logout(); };
@@ -120,6 +135,7 @@
     const closeNav = () => document.body.classList.remove('nav-open');
     document.getElementById('nav-burger').onclick = () => document.body.classList.toggle('nav-open');
     document.getElementById('nav-overlay').onclick = closeNav;
+    document.body.classList.toggle('has-bottomnav', brand === 'clinic');
     root.querySelectorAll('.sidebar .nav-item, .sidebar .back-link').forEach(a => a.addEventListener('click', closeNav));
   }
 
@@ -1018,560 +1034,458 @@
   }
 
   /* ---------------- bots overview page ---------------- */
-  /* ---------------- management board (demo, sample data only) ---------------- */
-  const BOARD_TABS = [
-    ['overview', 'מבט כללי'], ['campaigns', 'קמפיינים'], ['funnel', 'משפך'],
-    ['attention', 'דורשים טיפול'], ['messages', 'הודעות אוטומטיות'], ['systems', 'מצב המערכות'],
-  ];
-  const ils = (n) => '\u20AA' + n.toLocaleString('he-IL');
+  /* ---------------- clinic dashboard (demo per spec 25.11.2026; sample data only) ---------------- */
+  const ils = (n) => '₪' + n.toLocaleString('he-IL');
   const TIP = {
-    'לידים היום': 'פניות חדשות שנכנסו היום מכל הערוצים',
-    'לידים החודש': 'סך הפניות החדשות מה-1 בחודש; האחוז משווה לחודש הקודם',
-    'תורים שנקבעו השבוע': 'כמה לידים קבעו תור השבוע',
-    'עסקאות נסגרו החודש': 'כמה מטופלים שילמו החודש',
-    'הכנסה החודש': 'סך התשלומים שהתקבלו החודש ממטופלים ששויכו ללידים',
-    'הוצאת פרסום החודש': 'סך ההוצאה על מודעות החודש; ההחזר = הכנסה חלקי הוצאה',
-    'הוצאה': 'כמה שולם על פרסום הקמפיין בתקופה הנבחרת',
-    'לידים': 'כמה פניות חדשות הגיעו מהקמפיין',
+    'לידים היום': 'לידים חדשים שנכנסו היום — קבוע להיום, לא מושפע מבורר התקופה',
+    'לידים': 'לידים חדשים בתקופה הנבחרת; ליד חוזר בתוך 90 יום נספר פעם אחת',
+    'תורים שנקבעו': 'תורים שנקבעו בתקופה — מדד פעילות (לפי תאריך קביעה)',
+    'מטופלים משלמים חדשים': 'לידים מהקוהורט ששילמו לראשונה — מדד קוהורט (לפי תאריך ליד)',
+    'הכנסות': 'כל התשלומים בקליניקה בתקופה, כולל לא ממומן',
+    'הכנסות משויכות': 'הכנסות ממטופלים ששולמו עד 180 יום מהליד, משויכות לקמפיינים ממומנים בלבד',
+    'הוצאת פרסום': 'הוצאת הפרסום בפועל בתקופה (מטא; גוגל כשיחובר)',
+    'החזר על ההוצאה': 'הכנסות משויכות חלקי הוצאת פרסום — אותה נוסחה בכל מסך',
     'עלות לליד': 'הוצאת הפרסום חלקי מספר הלידים',
-    'קבעו תור': 'כמה מהלידים קבעו תור בקליניקה',
-    'הגיעו': 'כמה מבעלי התור הגיעו בפועל',
-    'שילמו': 'כמה מטופלים שילמו על טיפול',
-    'הכנסה': 'סך התשלומים ממטופלים ששויכו לקמפיין',
-    'החזר על ההוצאה': 'הכנסה חלקי הוצאת הפרסום; על כל שקל שהושקע',
-    'נשלחו': 'לכמה אנשי קשר נשלחה ההודעה',
+    'עלות למטופל משלם': 'הוצאת הערוץ חלקי מטופלים ששילמו — המספר שאיתו מעבירים תקציב בין ערוצים',
+    'נשלחו': 'כמה הודעות נשלחו בתקופה',
     'ענו': 'כמה ענו להודעה, ואחוזם מכלל הנשלחו',
-    'עלות שליחה': 'עלות שליחת התבנית בוואטסאפ לפי תעריפי מטא',
-    'חדשים שלא קיבלו מענה': 'לידים חדשים שעוד לא נענתה להם הודעה ראשונה',
-    'לחצו \u201Cלקבוע ייעוץ\u201D': 'לידים שלחצו על הכפתור ומחכים לתיאום',
-    'בקשות שינוי תור': 'מטופלים שביקשו לשנות תור קיים',
-    'פניות מהאתר בבדיקה ידנית': 'פניות מהטופס באתר שדורשות אימות לפני קליטה',
-    'פעיל': 'רכיב שעובד כרגע כרגיל',
-    'תצוגה מקדימה': 'רכיב בהרצת ניסיון לפני הפעלה מלאה',
-    'לא נבנה': 'רכיב מתוכנן שעוד לא פותח',
+    'קבעו תור': 'כמה קבעו תור בעקבות ההודעה',
+    'עלות משוערת': 'הערכה: עלות מנוי חודשי לספק חלקי הודעות, בתוספת תעריף שיחה — משוער, לא חיוב בפועל',
+    'פעיל': 'המקור עובד ומעדכן כרגיל',
+    'בתצוגה מקדימה': 'רכיב בהרצת ניסיון לפני הפעלה מלאה',
+    'טרם חובר': 'מקור מתוכנן שעוד לא חובר — הנתונים שלו לא נכללים בדוחות',
   };
-  const BOARD = {
-    updated: 'עודכן לפני 12 דקות',
-    kpis: [
-      { label: 'לידים היום', value: '9', delta: '+2 מול אתמול', up: true },
-      { label: 'לידים החודש', value: '168', delta: '+8% מול חודש קודם', up: true },
-      { label: 'תורים שנקבעו השבוע', value: '14', delta: '+3 מול שבוע קודם', up: true },
-      { label: 'עסקאות נסגרו החודש', value: '11', delta: '\u22121 מול חודש קודם', up: false },
-      { label: 'הכנסה החודש', value: ils(86400), delta: '+15% מול חודש קודם', up: true },
-      { label: 'הוצאת פרסום החודש', value: ils(12300), delta: 'החזר 7.0 על ההוצאה', up: true },
-    ],
-    leadDays: [6, 8, 5, 9, 7, 4, 10, 8, 6, 11, 9, 5, 7, 9],
+  const CLINIC = {
+    name: 'ד"ר זיו פרץ · קליניקה אסתטית',
+    updatedAgo: 'עודכן לפני 12 דקות',
+    followup: 'א׳–ה׳ 19:30–20:00',
+  };
+  const CPERIODS = [['today', 'היום'], ['week', 'השבוע'], ['month', 'החודש'], ['prevmonth', 'חודש קודם'], ['q90', '90 ימים'], ['custom', 'טווח תאריכים']];
+  const PSCALE = { today: .05, week: .26, month: 1, prevmonth: .93, q90: 2.83, custom: .62 };
+  const PDELTAS = {
+    today: { leads: '+2 מול אתמול', booked: '+1 מול אתמול', paying: 'כמו אתמול', rev: '+12% מול אתמול' },
+    week: { leads: '+6% מול שבוע קודם', booked: '+3 מול שבוע קודם', paying: '−1 מול שבוע קודם', rev: '+9% מול שבוע קודם' },
+    month: { leads: '+8% מול חודש קודם', booked: '+5 מול חודש קודם', paying: '−1 מול חודש קודם', rev: '+15% מול חודש קודם' },
+    prevmonth: { leads: 'החודש: 184 (+8%)', booked: 'מול 62 החודש', paying: 'מול 23 החודש', rev: 'מול ₪128,400 החודש' },
+    q90: { leads: '+11% מול 90 הקודמים', booked: '+9%', paying: '+6%', rev: '+13%' },
+    custom: { leads: 'נתוני דמו', booked: 'נתוני דמו', paying: 'נתוני דמו', rev: 'נתוני דמו' },
+  };
+  /* Canonical month dataset — every screen derives from these rows so numbers
+     are consistent everywhere (spec §3, R1). */
+  const CD = {
+    revenue: 128400,
     channels: [
-      { name: 'מודעות מטא בוואטסאפ', n: 88, conv: '21%', cost: ils(118) },
-      { name: 'אורגני / וואטסאפ ישיר', n: 52, conv: '29%', cost: 'ללא עלות' },
-      { name: 'אתר', n: 14, conv: '29%', cost: ils(71) },
-      { name: 'שיחה שלא נענתה', n: 9, conv: '33%', cost: 'ללא עלות' },
-      { name: 'MedReviews', n: 5, conv: '20%', cost: ils(40) },
+      { key: 'meta_wa_ads', name: 'מודעות מטא בוואטסאפ', leads: 96, booked: 38, arrived: 29, paid: 20, spend: 10830, delta: '+9% לידים', up: true },
+      { key: 'meta_lead_form', name: 'טופס לידים מטא', leads: 21, booked: 6, arrived: 4, paid: 1, spend: 1500, delta: '+4 לידים', up: true },
+      { key: 'organic_wa', name: 'אורגני / וואטסאפ ישיר', leads: 38, booked: 10, arrived: 7, paid: 1, spend: 0, delta: '+6% לידים', up: true },
+      { key: 'website', name: 'אתר הקליניקה', leads: 12, booked: 4, arrived: 3, paid: 1, spend: 0, delta: 'ללא שינוי', up: true },
+      { key: 'missed_call', name: 'שיחה שלא נענתה', leads: 10, booked: 3, arrived: 2, paid: 0, spend: 0, delta: '+2 לידים', up: true },
+      { key: 'medreviews', name: 'MedReviews', leads: 7, booked: 1, arrived: 0, paid: 0, spend: 0, delta: '−1 ליד', up: false },
     ],
     campaigns: [
-      { name: 'פייסטייט \u2013 נשים +35 \u2013 וידאו 1', channel: 'מטא \u00B7 וואטסאפ', spend: 4200, leads: 38, booked: 12, arrived: 9, paid: 6, revenue: 31200 },
-      { name: 'מורפיאוס 8 \u2013 נשים \u2013 תמונה 2', channel: 'מטא \u00B7 וואטסאפ', spend: 3100, leads: 26, booked: 8, arrived: 6, paid: 4, revenue: 15800 },
-      { name: 'פיסול אף \u2013 גברים \u2013 רילס 1', channel: 'מטא \u00B7 וואטסאפ', spend: 2700, leads: 19, booked: 5, arrived: 4, paid: 2, revenue: 24000 },
-      { name: 'אתר \u2013 חיפוש ממומן (גוגל)', channel: 'גוגל \u00B7 אתר', spend: 1000, leads: 14, booked: 4, arrived: 3, paid: 2, revenue: 8400 },
-      { name: 'בוסט אינסטגרם \u2013 קהל רחב', channel: 'מטא \u00B7 אינסטגרם', spend: 1300, leads: 11, booked: 2, arrived: 1, paid: 1, revenue: 3900 },
-      { name: 'אורגני / לא משויך', channel: 'אורגני', spend: 0, leads: 60, booked: 15, arrived: 11, paid: 8, revenue: 12900 },
+      { key: 'c1', name: 'פייסטייט – נשים +35 – וידאו 1', channel: 'meta_wa_ads', treatment: 'פייסטייט', status: 'פעיל', spend: 4200, leads: 34, booked: 14, arrived: 11, paid: 8, rev: 36500 },
+      { key: 'c2', name: 'מורפיאוס 8 – נשים – תמונה 2', channel: 'meta_wa_ads', treatment: 'מורפיאוס 8', status: 'פעיל', spend: 3300, leads: 27, booked: 10, arrived: 8, paid: 5, rev: 24100 },
+      { key: 'c3', name: 'בוטוקס – קהל רחב – רילס 1', channel: 'meta_wa_ads', treatment: 'בוטוקס', status: 'פעיל', spend: 2100, leads: 18, booked: 7, arrived: 5, paid: 4, rev: 19800 },
+      { key: 'c4', name: 'השתלת שיער – גברים – וידאו 3', channel: 'meta_wa_ads', treatment: 'השתלת שיער', status: 'מושהה', spend: 1230, leads: 9, booked: 4, arrived: 3, paid: 2, rev: 9400 },
+      { key: 'c5', name: 'טופס לידים – רילס אינסטגרם', channel: 'meta_lead_form', treatment: 'מורפיאוס 8', status: 'פעיל', spend: 1500, leads: 21, booked: 6, arrived: 4, paid: 1, rev: 4100 },
+      { key: 'unmapped', name: 'לא משויך לקמפיין', channel: 'meta_wa_ads', treatment: '—', status: '', spend: 0, leads: 8, booked: 3, arrived: 2, paid: 1, rev: 2300, unmapped: true },
+      { key: 'organic_wa', name: 'אורגני / וואטסאפ ישיר', channel: 'organic_wa', treatment: '—', status: '', spend: 0, leads: 38, booked: 10, arrived: 7, paid: 1, rev: 0, revNull: true, src: true },
+      { key: 'website', name: 'אתר הקליניקה', channel: 'website', treatment: '—', status: '', spend: 0, leads: 12, booked: 4, arrived: 3, paid: 1, rev: 0, revNull: true, src: true },
+      { key: 'missed_call', name: 'שיחה שלא נענתה', channel: 'missed_call', treatment: '—', status: '', spend: 0, leads: 10, booked: 3, arrived: 2, paid: 0, rev: 0, revNull: true, src: true },
+      { key: 'medreviews', name: 'MedReviews', channel: 'medreviews', treatment: '—', status: '', spend: 0, leads: 7, booked: 1, arrived: 0, paid: 0, rev: 0, revNull: true, src: true },
     ],
-    attention: [
-      { title: 'חדשים שלא קיבלו מענה', rows: [
-        { name: 'נועה כ.', phone: '050-***-**34', ago: 'לפני 3 שעות', topic: 'פייסטייט' },
-        { name: 'דן מ.', phone: '054-***-**81', ago: 'לפני 5 שעות', topic: 'בוטוקס' }] },
-      { title: 'לחצו \u201Cלקבוע ייעוץ\u201D', rows: [
-        { name: 'יעל ר.', phone: '052-***-**17', ago: 'לפני 40 דקות', topic: 'מורפיאוס 8' },
-        { name: 'אבי ש.', phone: '050-***-**63', ago: 'לפני שעתיים', topic: 'השתלת שיער' },
-        { name: 'מירי ל.', phone: '058-***-**29', ago: 'אתמול', topic: 'פייסטייט' }] },
-      { title: 'בקשות שינוי תור', rows: [
-        { name: 'רונית ב.', phone: '053-***-**92', ago: '\u201Cאפשר לדחות לשבוע הבא?\u201D', topic: 'תור ביום ה\u2033 10:30' }] },
-      { title: 'פניות מהאתר בבדיקה ידנית', rows: [
-        { name: 'כרמל ג.', phone: '054-***-**48', ago: 'שם לא תואם כרטיס קיים', topic: 'טופס האתר' },
-        { name: 'סמדר א.', phone: '050-***-**15', ago: 'שני כרטיסים לאותו מספר', topic: 'טופס האתר' }] },
-    ],
-    templates: [
-      { name: 'אישור פנייה מהאתר \u2013 נוסח 2', sent: 74, delivered: 72, answered: 31, booked: 9, unsub: 0, cost: 133 },
-      { name: 'פולואפ לליד 24 שעות \u2013 עם שם', sent: 64, delivered: 61, answered: 18, booked: 7, unsub: 1, cost: 109 },
-      { name: 'שיחה שלא נענתה', sent: 41, delivered: 40, answered: 12, booked: 3, unsub: 0, cost: 74 },
-      { name: 'הנחיות לפני טיפול פייסטייט', sent: 22, delivered: 22, answered: 6, booked: null, unsub: 0, cost: 40 },
-      { name: 'נוסח ג \u2013 תור שבוטל', sent: 9, delivered: 9, answered: 4, booked: 2, unsub: 0, cost: 16 },
-    ],
-    systems: [
-      { name: 'קליטת אירועים מאיזיביזי (webhook)', status: 'פעיל', meta: 'אירוע אחרון לפני 2 דקות' },
-      { name: 'שיוך לידים לקמפייני מטא', status: 'פעיל', meta: 'עודכן לפני 14 דקות' },
-      { name: 'חשבון וואטסאפ \u2013 איכות GREEN', status: 'פעיל', meta: 'נבדק לפני שעה' },
-      { name: 'תוסף האתר 2.5.4', status: 'פעיל', meta: 'פנייה אחרונה לפני 4 שעות' },
-      { name: 'שיחה שלא נענתה', status: 'פעיל', meta: 'אתמול 18:42' },
-      { name: 'MedReviews', status: 'פעיל', meta: 'לפני יומיים' },
-      { name: 'הנחיות לפני פייסטייט', status: 'פעיל', meta: 'נשלח היום 10:00' },
-      { name: 'שיוך כפתור וואטסאפ באתר', status: 'תצוגה מקדימה', meta: 'אירוע אחרון לפני שעה' },
-      { name: 'עדכון סטטוסים אוטומטי', status: 'תצוגה מקדימה', meta: 'רץ לפני 25 דקות' },
-      { name: 'הודעות לפי סטטוס', status: 'לא נבנה', meta: '\u2014' },
-    ],
-    sysErrors: 'שגיאת שליחה אחת ב-7 הימים האחרונים (whatsapp-messages.failed, אתמול)',
+    treatments: ['פייסטייט', 'מורפיאוס 8', 'בוטוקס', 'השתלת שיער'],
   };
-  BOARD.channelFunnels = [
-    { name: 'מודעות מטא בוואטסאפ', leads: 88, booked: 25, arrived: 18, paid: 12, spend: 11300, delta: '+9% לידים', up: true },
-    { name: 'אורגני / וואטסאפ ישיר', leads: 52, booked: 14, arrived: 10, paid: 7, spend: 0, delta: '+6% לידים', up: true },
-    { name: 'אתר', leads: 14, booked: 4, arrived: 3, paid: 2, spend: 1000, delta: 'ללא שינוי', up: true },
-    { name: 'שיחה שלא נענתה', leads: 9, booked: 2, arrived: 2, paid: 1, spend: 0, delta: '+2 לידים', up: true },
-    { name: 'MedReviews', leads: 5, booked: 1, arrived: 1, paid: 1, spend: 200, delta: '−1 ליד', up: false },
+  const ATT_CATS = [
+    { key: 'no_response', title: 'חדשים שלא קיבלו מענה', color: 'var(--ac-red)', exit: 'יוצא מהרשימה כשהצוות או המערכת עונים', items: [
+      { id: '48213', ch: 'מטא · וואטסאפ', tr: 'פייסטייט', w: 'לפני 3 שעות', wh: 3 },
+      { id: '48209', ch: 'טופס מטא', tr: 'מורפיאוס 8', w: 'לפני 5 שעות', wh: 5 },
+      { id: '48198', ch: 'אורגני', tr: '—', w: 'לפני 40 דקות', wh: .7 },
+      { id: '48195', ch: 'מטא · וואטסאפ', tr: 'בוטוקס', w: 'לפני 6 שעות', wh: 6 },
+      { id: '48190', ch: 'אתר', tr: '—', w: 'לפני שעתיים', wh: 2 },
+      { id: '48187', ch: 'MedReviews', tr: '—', w: 'אתמול', wh: 26 },
+      { id: '48181', ch: 'מטא · וואטסאפ', tr: 'פייסטייט', w: 'לפני 50 דקות', wh: .8 },
+    ] },
+    { key: 'book_click', title: 'לחצו "לקבוע ייעוץ" ולא נקבע תור', color: 'var(--ac-orange)', exit: 'יוצא מהרשימה כשנקבע תור ביומן', items: [
+      { id: '48211', ch: 'מטא · וואטסאפ', tr: 'מורפיאוס 8', w: 'לפני 40 דקות', wh: .7 },
+      { id: '48205', ch: 'אורגני', tr: 'השתלת שיער', w: 'לפני שעתיים', wh: 2 },
+      { id: '48199', ch: 'מטא · וואטסאפ', tr: 'פייסטייט', w: 'אתמול', wh: 22 },
+      { id: '48193', ch: 'אתר', tr: '—', w: 'לפני 3 שעות', wh: 3 },
+    ] },
+    { key: 'reschedule', title: 'בקשות שינוי או ביטול תור', color: 'var(--ac-blue)', exit: 'יוצא מהרשימה כשהתור עודכן ביומן', items: [
+      { id: '48207', ch: '—', tr: 'תור ביום ג׳ 10:30', w: 'לפני שעה', wh: 1 },
+      { id: '48196', ch: '—', tr: 'תור ביום ה׳ 16:00', w: 'לפני 3 שעות', wh: 3 },
+      { id: '48188', ch: '—', tr: 'תור מחר 09:00', w: 'אתמול', wh: 20 },
+    ] },
+    { key: 'site_inquiry', title: 'פניות מהאתר בבדיקה ידנית', color: 'var(--ac-purple)', exit: 'יוצא מהרשימה כשהפנייה מאומתת או נקלטת', items: [
+      { id: '48203', ch: 'אתר', tr: 'שם לא תואם כרטיס קיים', w: 'לפני שעתיים', wh: 2 },
+      { id: '48191', ch: 'אתר', tr: 'שני כרטיסים לאותו מספר', w: 'לפני 5 שעות', wh: 5 },
+    ] },
   ];
-  const BOARD_PERIODS = [['day', 'היום'], ['week', 'השבוע'], ['month', 'החודש'], ['prevmonth', 'חודש קודם'], ['q90', '90 ימים'], ['custom', 'טווח תאריכים']];
-  const chan = (meta, organic, site, call, medrev) => [
-    { name: 'מודעות מטא בוואטסאפ', n: meta, conv: '21%', cost: ils(118) },
-    { name: 'אורגני / וואטסאפ ישיר', n: organic, conv: '29%', cost: 'ללא עלות' },
-    { name: 'אתר', n: site, conv: '29%', cost: ils(71) },
-    { name: 'שיחה שלא נענתה', n: call, conv: '33%', cost: 'ללא עלות' },
-    { name: 'MedReviews', n: medrev, conv: '20%', cost: ils(40) },
+  const ATTN_TOTAL = () => ATT_CATS.reduce((a, c) => a + c.items.length, 0);
+  const TPLS = [
+    { name: 'אישור פנייה מהאתר – נוסח 2', trigger: 'פניית אתר חדשה', sent: 74, replied: 31, booked: 9, optout: 0, cost: 133 },
+    { name: 'פולואפ לליד אחרי 24 שעות', trigger: 'ליד מושהה ללא מענה 24 שעות', sent: 64, replied: 18, booked: 7, optout: 1, cost: 109 },
+    { name: 'שיחה שלא נענתה', trigger: 'שיחה שלא נענתה', sent: 41, replied: 12, booked: 3, optout: 0, cost: 74 },
+    { name: 'הנחיות לפני טיפול פייסטייט', trigger: '24 שעות לפני תור', sent: 22, replied: 6, booked: null, optout: 0, cost: 40 },
+    { name: 'תזכורת תור – נוסח ג׳', trigger: 'יום לפני התור', sent: 9, replied: 4, booked: 2, optout: 0, cost: 16 },
   ];
-  BOARD.periods = {
-    day: { chartTitle: 'לידים \u2014 היום לפי שעות', leadDays: [0, 1, 0, 2, 1, 3, 2, 4, 3, 2, 5, 3, 4, 2], channels: chan(6, 4, 1, 1, 1),
-      kpis: [
-        { label: 'לידים היום', value: '9', delta: '+2 מול אתמול', up: true },
-        { label: 'תורים שנקבעו היום', value: '3', delta: '+1 מול אתמול', up: true },
-        { label: 'עסקאות נסגרו היום', value: '1', delta: 'כמו אתמול', up: true },
-        { label: 'הכנסה היום', value: ils(4200), delta: '+12% מול אתמול', up: true },
-        { label: 'הוצאת פרסום היום', value: ils(410), delta: 'החזר 10.2 על ההוצאה', up: true },
-        { label: 'פניות ממתינות למענה', value: '2', delta: 'הישנות מלפני 3 שעות', up: false },
-      ] },
-    week: { chartTitle: 'לידים \u2014 7 ימים אחרונים', leadDays: [8, 6, 11, 9, 5, 7, 9], channels: chan(48, 29, 8, 5, 3),
-      kpis: [
-        { label: 'לידים השבוע', value: '55', delta: '+6% מול שבוע קודם', up: true },
-        { label: 'תורים שנקבעו השבוע', value: '14', delta: '+3 מול שבוע קודם', up: true },
-        { label: 'עסקאות נסגרו השבוע', value: '4', delta: '\u22121 מול שבוע קודם', up: false },
-        { label: 'הכנסה השבוע', value: ils(21300), delta: '+9% מול שבוע קודם', up: true },
-        { label: 'הוצאת פרסום השבוע', value: ils(2950), delta: 'החזר 7.2 על ההוצאה', up: true },
-        { label: 'פניות ממתינות למענה', value: '2', delta: 'הישנות מלפני 3 שעות', up: false },
-      ] },
-    month: { chartTitle: 'לידים \u2014 14 ימים אחרונים', get leadDays() { return BOARD.leadDays; }, get channels() { return BOARD.channels; }, get kpis() { return BOARD.kpis; } },
-    prevmonth: { chartTitle: 'לידים \u2014 החודש הקודם', leadDays: [5, 7, 4, 8, 6, 9, 7, 5, 8, 6, 4, 7, 8, 6], channels: chan(79, 47, 12, 8, 4),
-      kpis: [
-        { label: 'לידים בחודש הקודם', value: '154', delta: 'החודש: 168 (+8%)', up: true },
-        { label: 'תורים שנקבעו', value: '39', delta: 'מול 46 החודש', up: false },
-        { label: 'עסקאות נסגרו', value: '12', delta: 'מול 11 החודש', up: true },
-        { label: 'הכנסה', value: ils(75100), delta: 'מול ' + ils(86400) + ' החודש', up: true },
-        { label: 'הוצאת פרסום', value: ils(11900), delta: 'החזר 6.3 על ההוצאה', up: true },
-        { label: 'עלות לליד', value: ils(126), delta: 'מול ' + ils(118) + ' החודש', up: true },
-      ] },
-    q90: { chartTitle: 'לידים \u2014 12 שבועות אחרונים', leadDays: [32, 38, 35, 41, 39, 44, 47, 43, 50, 46, 52, 49], channels: chan(251, 148, 39, 26, 14),
-      kpis: [
-        { label: 'לידים ב-90 ימים', value: '478', delta: '+11% מול 90 הקודמים', up: true },
-        { label: 'תורים שנקבעו', value: '131', delta: '+9%', up: true },
-        { label: 'עסקאות נסגרו', value: '34', delta: '+6%', up: true },
-        { label: 'הכנסה ב-90 ימים', value: ils(241800), delta: '+13%', up: true },
-        { label: 'הוצאת פרסום ב-90 ימים', value: ils(35400), delta: 'החזר 6.8 על ההוצאה', up: true },
-        { label: 'עלות לליד ממוצעת', value: ils(121), delta: '\u22124% שיפור', up: true },
-      ] },
-    custom: { chartTitle: 'לידים \u2014 בטווח שנבחר', leadDays: [4, 6, 3, 7, 5, 8, 6, 4, 5, 7, 3, 6, 5, 4], channels: chan(34, 21, 6, 4, 2),
-      kpis: [
-        { label: 'לידים בטווח', value: '67', delta: 'נתוני דמו', up: true },
-        { label: 'תורים שנקבעו', value: '17', delta: 'נתוני דמו', up: true },
-        { label: 'עסקאות נסגרו', value: '5', delta: 'נתוני דמו', up: true },
-        { label: 'הכנסה בטווח', value: ils(26900), delta: 'נתוני דמו', up: true },
-        { label: 'הוצאת פרסום בטווח', value: ils(3600), delta: 'החזר 7.5 על ההוצאה', up: true },
-        { label: 'עלות לליד', value: ils(105), delta: 'נתוני דמו', up: true },
-      ] },
-  };
+  const SRCS = [
+    { name: 'יומן ותשלומים (Easybizy)', status: 'פעיל', meta: 'עודכן לפני 2 דקות' },
+    { name: 'וואטסאפ', status: 'פעיל', meta: 'עודכן לפני דקה' },
+    { name: 'פרסום מטא', status: 'פעיל', meta: 'עודכן לפני שעה' },
+    { name: 'שיחות שלא נענו', status: 'פעיל', meta: 'אתמול 18:42' },
+    { name: 'אתר הקליניקה', status: 'פעיל', meta: 'עודכן לפני 4 שעות' },
+    { name: 'MedReviews', status: 'פעיל', meta: 'עודכן לפני יומיים' },
+    { name: 'שיוך כפתור וואטסאפ באתר', status: 'בתצוגה מקדימה', meta: 'אירוע אחרון לפני שעה' },
+    { name: 'פרסום גוגל', status: 'טרם חובר', meta: '—' },
+  ];
+  const RESP = { buckets: [['תוך 5 דקות', 41, 'var(--ac-green)'], ['5–30 דקות', 33, 'var(--ac-olive)'], ['30 דקות – שעתיים', 17, 'var(--ac-orange)'], ['מעל שעתיים', 9, 'var(--ac-red)']], median: '12 דקות' };
 
-  function viewBoard(section = 'overview') {
+  const curPeriod = () => (state.q && state.q.get('p')) || 'month';
+  const pname = (p) => (CPERIODS.find(([k]) => k === p) || [])[1] || 'החודש';
+  function periodUrl(p) {
+    const [path, qs] = (location.hash || '#/').split('?');
+    const q = new URLSearchParams(qs || '');
+    if (p === 'month') q.delete('p'); else q.set('p', p);
+    const s = q.toString();
+    return path + (s ? '?' + s : '');
+  }
+  const VER = () => document.querySelector('meta[name="app-ver"]')?.content || '';
+  function clinicHead(title, sub) {
+    return `<div class="page-head"><h1>${title}</h1><span class="badge yellow">נתוני דמו</span><span class="badge" style="background:var(--gray-soft);color:var(--muted);font-weight:600">גרסה ${VER()}</span></div>${sub ? `<div class="cell-sub" style="margin:2px 0 14px">${sub}</div>` : ''}`;
+  }
+  const FCOLORS = ['var(--ac-blue)', 'var(--ac-orange)', 'var(--ac-olive)', 'var(--ac-green)'];
+  function funnelBars(st) {
+    const first = st[0][1] || 1;
+    let o = '<div class="fb">';
+    st.forEach(([nm, v], i) => {
+      const w = Math.max(3, Math.round(v / first * 100));
+      if (i) o += `<div class="fb-conv"><b class="num">${Math.round(v / (st[i - 1][1] || 1) * 100)}%</b> המרה · <span class="num">${Math.round(v / first * 100)}%</span> מההתחלה</div>`;
+      o += `<div class="fb-row"><span class="fb-n">${nm}</span><div class="fb-track"><div class="fb-bar" style="width:${w}%;background:${FCOLORS[i]}"><b class="num">${v}</b></div></div></div>`;
+    });
+    o += `<div class="fb-e2e">המרה מקצה לקצה: <b class="num">${Math.round(st[3][1] / first * 100)}%</b></div></div>`;
+    return o;
+  }
+  function clinicDonut(chans) {
+    const pal = ['var(--pal0)', 'var(--pal1)', 'var(--pal2)', 'var(--pal3)', 'var(--pal4)', 'var(--ac-cyan)'];
+    const tot = chans.reduce((a, c) => a + c.leads, 0) || 1;
+    let acc = 0;
+    const segs = chans.map((c, i) => { const f = acc / tot * 360; acc += c.leads; return `${pal[i % 6]} ${f}deg ${acc / tot * 360}deg`; }).join(', ');
+    return `<div class="donut-wrap"><div class="donut" style="background:conic-gradient(${segs})"><div class="hole"><div><b class="num">${tot}</b><small>לידים</small></div></div></div>
+      <div class="donut-legend">${chans.map((c, i) => `<a class="dl-row" href="#/channels?channel=${c.key}"><span class="dotk" style="background:${pal[i % 6]}"></span><span class="dl-name">${c.name}</span><b class="num">${c.leads} · ${Math.round(c.leads / tot * 100)}%</b></a>`).join('')}</div></div>`;
+  }
+  function scaledChannels(p) {
+    const f = PSCALE[p] || 1, r = (n) => Math.round(n * f);
+    return CD.channels.map(c => ({ ...c, leads: r(c.leads), booked: r(c.booked), arrived: r(c.arrived), paid: r(c.paid), spend: r(c.spend) }));
+  }
+  function scaledCampaigns(p) {
+    const f = PSCALE[p] || 1, r = (n) => Math.round(n * f);
+    return CD.campaigns.map(c => ({ ...c, spend: r(c.spend), leads: r(c.leads), booked: r(c.booked), arrived: r(c.arrived), paid: r(c.paid), rev: r(c.rev) }));
+  }
+  const chanName = (key) => (CD.channels.find(c => c.key === key) || {}).name || key;
+
+  function viewClinic(screen, param) {
     clearInterval(state.convoTimer);
-    shell('board', `
-      <div class="page-head"><h1>דשבורד ניהול</h1><span class="badge yellow">נתוני דמו</span><span class="badge" style="background:var(--gray-soft);color:var(--muted);font-weight:600">גרסה ${document.querySelector('meta[name="app-ver"]')?.content || ''}</span></div>
-      <div class="board-tabs">${BOARD_TABS.map(([k, l]) => `<a class="board-tab ${section === k ? 'active' : ''}" href="#/board/${k}">${l}</a>`).join('')}</div>
-      <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 נתונים לצורך הצגה בלבד, אין חיבור לנתוני הקליניקה</div>
-      <div id="board-body"></div>`, null, 'clinic');
-    const body = document.getElementById('board-body');
-    ({ overview: boardOverview, campaigns: boardCampaigns, funnel: boardFunnel, attention: boardAttention, messages: boardMessages, systems: boardSystems, mapping: boardMapping, fieldmap: boardFieldMap, workplan: boardWorkPlan }[section] || boardOverview)(body);
+    shell('clinic', '<div id="clinic-body"></div>', null, 'clinic', screen);
+    const el = document.getElementById('clinic-body');
+    ({ overview: clinicOverview, attention: clinicAttention, channels: clinicChannels, campaign: clinicCampaign, messages: clinicMessages, status: clinicStatus }[screen] || clinicOverview)(el, param);
   }
 
-  function boardOverview(el) {
-    const pk = state.boardPeriod || 'month';
-    const P = BOARD.periods[pk] || BOARD.periods.month;
-    const chartHtml = c2chart(P.leadDays, {
-      labels: P.leadDays.map((_, i) => (i % 2 === 0 ? (pk === 'day' ? `${8 + i}:00` : String(i + 1)) : '')),
-      tip: (i) => `${P.leadDays[i]} לידים`,
-    });
-    const pal = ['var(--pal0)', 'var(--pal1)', 'var(--pal2)', 'var(--pal3)', 'var(--pal4)'];
-    const chanTot = P.channels.reduce((a, ch) => a + ch.n, 0);
-    let _acc = 0;
-    const donutSegs = P.channels.map((ch, i) => { const f = _acc / chanTot * 360; _acc += ch.n; return `${pal[i % 5]} ${f}deg ${_acc / chanTot * 360}deg`; }).join(', ');
-    const donutHtml = `<div class="donut-wrap"><div class="donut" style="background:conic-gradient(${donutSegs})"><div class="hole"><div><b class="num">${chanTot}</b><small>לידים</small></div></div></div><div class="donut-legend">${P.channels.map((ch, i) => `<div class="dl-row"><span class="dotk" style="background:${pal[i % 5]}"></span><span class="dl-name">${ch.name}</span><b class="num">${ch.n} · ${Math.round(ch.n / chanTot * 100)}%</b></div>`).join('')}</div></div>`;
-    const rangeNote = pk === 'custom' ? `<span class="range-box"><input type="date" id="rng-from" value="2026-11-01"> \u05E2\u05D3 <input type="date" id="rng-to" value="2026-11-24"></span>` : '';
-    el.innerHTML = `
-      <div class="board-tabs" style="margin-top:0;flex-wrap:wrap">
-        ${BOARD_PERIODS.map(([k, l]) => `<button class="board-tab ${pk === k ? 'active' : ''}" data-period="${k}">${l}</button>`).join('')}
-        ${rangeNote}
+  function clinic404() {
+    clearInterval(state.convoTimer);
+    shell('clinic', `<div class="card" style="margin-top:24px;text-align:center;padding:40px"><h3>הדף לא נמצא</h3><p class="cell-sub">הקישור ישן — הדשבורד שודרג ומבנה הדפים השתנה.</p><p style="margin-top:14px"><a class="btn" href="#/" style="text-decoration:none">לסקירה הכללית</a></p></div>`, null, 'clinic', '');
+  }
+
+  function overviewChart(p) {
+    const now = new Date();
+    const dstr = (d) => String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+    const ago = (n) => { const d = new Date(now); d.setDate(d.getDate() - n); return d; };
+    let values, labels, title;
+    if (p === 'today') {
+      values = [0, 1, 0, 2, 1, 3, 2, 4, 3, 2, 5, 3, 4, 2];
+      labels = values.map((_, i) => (i % 2 === 0 ? (8 + i) + ':00' : ''));
+      title = 'לידים — היום לפי שעות';
+    } else if (p === 'week') {
+      values = [8, 6, 11, 9, 5, 7, 9];
+      labels = values.map((_, i) => dstr(ago(6 - i)));
+      title = 'לידים — 7 ימים אחרונים';
+    } else if (p === 'q90') {
+      values = [32, 38, 35, 41, 39, 44, 47, 43, 50, 46, 52, 49];
+      labels = values.map((_, i) => (i % 2 === 0 ? dstr(ago((11 - i) * 7)) : ''));
+      title = 'לידים — 12 שבועות אחרונים (שבועי)';
+    } else if (p === 'prevmonth') {
+      values = [5, 7, 4, 8, 6, 9, 7, 5, 8, 6, 4, 7, 8, 6];
+      const base = now.getDate() + 13;
+      labels = values.map((_, i) => (i % 2 === 0 ? dstr(ago(base - i)) : ''));
+      title = 'לידים — החודש הקודם';
+    } else {
+      values = p === 'custom' ? [4, 6, 3, 7, 5, 8, 6, 4, 5, 7, 3, 6, 5, 4] : [6, 8, 5, 9, 7, 4, 10, 8, 6, 11, 9, 5, 7, 9];
+      labels = values.map((_, i) => (i % 2 === 0 ? dstr(ago(13 - i)) : ''));
+      title = p === 'custom' ? 'לידים — בטווח שנבחר' : 'לידים — 14 ימים אחרונים';
+    }
+    return { chart: c2chart(values, { labels, tip: (i) => `${values[i]} לידים` }), title };
+  }
+
+  function clinicOverview(el) {
+    const p = curPeriod();
+    const f = PSCALE[p] || 1, r = (n) => Math.round(n * f);
+    const dl = PDELTAS[p] || PDELTAS.month;
+    const { chart, title } = overviewChart(p);
+    const kpi = (label, value, sub, up, i, link) => `<${link ? `a href="${link}"` : 'div'} class="stat kpi has-tip kpi-link" data-tip="${TIP[label.replace(/ · .*/, '')] || ''}" tabindex="0" style="--ac:${['var(--ac-blue)', 'var(--ac-blue)', 'var(--ac-orange)', 'var(--ac-green)', 'var(--ac-purple)', 'var(--ac-red)'][i]}"><div class="s-label">${label}<span class="info-i">i</span></div><div class="s-value num">${value}</div><div class="s-sub" style="color:${up ? 'var(--mint-ink)' : 'var(--red)'}">${sub}</div></${link ? 'a' : 'div'}>`;
+    const chans = scaledChannels(p);
+    const attOldest = (c) => c.items.reduce((a, it) => it.wh > a.wh ? it : a, c.items[0]);
+    el.innerHTML = clinicHead('סקירה כללית', `${CLINIC.updatedAgo} · הדגמה בלבד — נתונים לצורך הצגה בלבד, אין חיבור לנתוני הקליניקה`) + `
+      <div class="card att-hero" style="margin:0 0 14px">
+        <div class="att-hero-head"><h3 style="margin:0">דורש טיפול עכשיו</h3><span class="att-hero-total num">${ATTN_TOTAL()}</span></div>
+        <div class="att-hero-cats">
+          ${ATT_CATS.map(c => `<a class="att-hero-cat" href="#/attention/${c.key}" style="--ac:${c.color}">
+            <div class="n num">${c.items.length}</div><div class="t">${c.title}</div><div class="w">הוותיק: ${attOldest(c).w}</div>
+          </a>`).join('')}
+        </div>
       </div>
       <div class="dash-grid">
-        ${P.kpis.map((k, i) => `<div class="stat kpi has-tip" data-tip="${TIP[k.label] || ''}" tabindex="0" style="--ac:${['var(--ac-blue)', 'var(--ac-blue)', 'var(--ac-orange)', 'var(--ac-green)', 'var(--ac-purple)', 'var(--ac-red)'][i % 6]}"><div class="s-label">${k.label}<span class="info-i">i</span></div><div class="s-value num">${k.value}</div><div class="s-sub" style="color:${k.up ? 'var(--mint-ink)' : 'var(--red)'}">${k.delta}</div><span class="kpi-chip ${k.up ? 'ok' : 'bad'}">${k.up ? 'מגמה חיובית' : 'דורש טיפול'}</span></div>`).join('')}
+        ${kpi('לידים היום', 9, '+2 מול אתמול', true, 0, '#/channels?p=today')}
+        ${kpi('לידים · ' + pname(p), r(184), dl.leads, true, 1)}
+        ${kpi('תורים שנקבעו', r(62), dl.booked, true, 2)}
+        ${kpi('מטופלים משלמים חדשים', r(23), dl.paying, p === 'prevmonth', 3)}
+        ${kpi('הכנסות', ils(r(CD.revenue)), 'מתוכן משויכות לפרסום: ' + ils(r(96200)), true, 4)}
+        ${kpi('הוצאת פרסום', ils(r(12330)), 'החזר ×7.8 על ההוצאה', true, 5)}
       </div>
+      ${p === 'custom' ? `<div class="cell-sub" style="margin:0 0 12px"><span class="range-box"><input type="date" id="rng-from" value="2026-11-01"> עד <input type="date" id="rng-to" value="2026-11-24"></span></div>` : ''}
       <div class="dash-2col">
-        <div class="card" style="margin:0"><h3>${P.chartTitle}</h3>
-          <div class="has-tip" data-tip="מספר הלידים שנכנסו בכל יחידת זמן בתקופה הנבחרת" tabindex="0">${chartHtml}</div>
-        </div>
-        <div class="card has-tip" style="margin:0" data-tip="פירוט הלידים לפי ערוץ בתקופה הנבחרת; המרה = אחוז הלידים שקבעו תור, ועלות להמרה = הוצאת הערוץ חלקי קובעי התור" tabindex="0"><h3>לידים לפי ערוץ</h3>
-          ${donutHtml}
-          <div class="chan-grid">${P.channels.map(ch => {
-            const cv = parseInt(ch.conv);
-            const cc = cv >= 28 ? 'var(--ac-green)' : cv >= 21 ? 'var(--ac-orange)' : 'var(--ac-red)';
-            return `<div class="chan-tile" style="--ac:${cc}">
-              <div class="chan-name">${ch.name}</div>
-              <div class="chan-n num">${ch.n}<span class="chan-nl">לידים</span></div>
-              <div class="chan-stats">
-                <div class="chan-stat"><b class="num" style="color:${cc}">${ch.conv}</b><span>אחוז המרה</span></div>
-                <div class="chan-stat"><b class="num">${ch.cost}</b><span>עלות להמרה</span></div>
-              </div>
-            </div>`;
-          }).join('')}</div>
+        <div class="card" style="margin:0"><h3>${title}</h3><div dir="ltr">${chart}</div></div>
+        <div class="card" style="margin:0"><h3>לידים לפי ערוץ</h3>
+          ${clinicDonut(chans)}
+          <div class="tbl-wrap"><table class="tbl tbl-rows">
+            <thead><tr><th>ערוץ</th><th>לידים</th><th>נקבעו תורים</th></tr></thead>
+            <tbody>${chans.map(c => `<tr data-chlink="${c.key}" style="cursor:pointer"><td data-h="ערוץ"><b>${c.name}</b></td><td data-h="לידים" class="num">${c.leads}</td><td data-h="נקבעו" class="num">${c.booked} · ${Math.round(c.booked / (c.leads || 1) * 100)}%</td></tr>`).join('')}</tbody>
+          </table></div>
         </div>
       </div>
-      <div class="alert-strip"><span class="as-ico">⚠</span><span><b>שים לב:</b> חלק מהמספרים חלקיים — סטטוסי לידים מתעדכנים כרגע ידנית, וחלק מהמודעות ממתינות למיפוי שמות. אחרי הפעלת העדכון האוטומטי והשלמת המיפוי הדוחות מלאים.</span></div>`;
-    el.querySelectorAll('[data-period]').forEach(b => b.onclick = () => { state.boardPeriod = b.dataset.period; boardOverview(el); });
-    const rf = document.getElementById('rng-from'), rt = document.getElementById('rng-to');
-    if (rf) rf.onchange = rt.onchange = () => boardOverview(el);
+      <a class="status-mini" href="#/status"><span class="sdot ok"></span> 6 מקורות פעילים · פרסום גוגל טרם חובר · ${CLINIC.updatedAgo}</a>
+      <div class="alert-strip" style="margin-top:10px"><span class="as-ico">⚠</span><span><b>נתונים חלקיים:</b> פרסום גוגל טרם חובר — ההוצאה והלידים מגוגל אינם נכללים כרגע בדוחות. שאר המקורות מלאים.</span></div>`;
+    el.querySelectorAll('[data-chlink]').forEach(tr => tr.onclick = () => { location.hash = '#/channels?channel=' + tr.dataset.chlink; });
   }
 
-  const HB_LAYOUTS = [['1', 'שם מלא + שארית דקה'], ['2', 'מספרים בפנים'], ['3', 'כרטיסי קמפיין'], ['4', 'אורך לפי נפח']];
+  function clinicAttention(el, cat) {
+    const cats = cat ? ATT_CATS.filter(c => c.key === cat) : ATT_CATS;
+    const wc = (wh) => wh < 1 ? 'var(--mint-ink)' : wh < 4 ? 'var(--ac-orange)' : 'var(--red)';
+    el.innerHTML = clinicHead('דורש טיפול', `מתרענן אוטומטית כל 60 שניות · בדשבורד לא נשמרים שמות או טלפונים — מזהה בלבד`) + `
+      ${cat ? `<div style="margin-bottom:12px"><a href="#/attention" style="color:var(--green);font-weight:600">← כל הקטגוריות</a></div>` : ''}
+      ${cats.map(c => `<div class="card att-cat" style="--ac:${c.color};margin:0 0 12px">
+        <div class="att-cat-head"><h3 style="margin:0">${c.title}</h3><span class="att-badge num" style="background:${c.color}">${c.items.length}</span><span class="cell-sub">${c.exit}</span></div>
+        ${c.items.map(it => `<div class="att-row2">
+          <bdi class="att-id num">ליד #${it.id}</bdi>
+          <span class="badge blue">${it.ch}</span>
+          ${it.tr !== '—' ? `<span class="badge">${it.tr}</span>` : ''}
+          <span class="att-wait num" style="color:${wc(it.wh)}">ממתין ${it.w}</span>
+          <button class="att-ebz" data-ebz>פתח ב-Easybizy ←</button>
+        </div>`).join('')}
+      </div>`).join('')}
+      <div class="guide">במערכת המחוברת הרשימה מתעדכנת ישירות ממקורות הנתונים; פרטי מטופלים לא נשמרים בדשבורד.</div>`;
+    el.querySelectorAll('[data-ebz]').forEach(b => b.onclick = () => toast('קישור לדוגמה — בגרסה המחוברת נפתח כרטיס הליד ב-Easybizy'));
+  }
 
-  function hbRender(layout) {
-    const cs = BOARD.campaigns;
-    const legend = `<div class="chart-legend"><span><span class="dotk" style="background:var(--hb-paid)"></span>שילמו</span><span><span class="dotk" style="background:var(--hb-arr)"></span>הגיעו</span><span><span class="dotk" style="background:var(--hb-book)"></span>קבעו תור</span><span><span class="dotk" style="background:var(--hb-ghost-line)"></span>לא קבעו תור</span></div>`;
-    const segsT = (c) => {
-      let o = '';
-      [[c.paid, 'var(--hb-paid)'], [c.arrived - c.paid, 'var(--hb-arr)'], [c.booked - c.arrived, 'var(--hb-book)']].forEach(([n, col]) => {
-        if (n > 0) o += `<span class="hb-seg" style="width:${n / c.leads * 100}%;background:${col}"></span>`;
-      });
-      if (c.leads - c.booked > 0) o += `<span class="hb-seg hb-thin" style="width:${(c.leads - c.booked) / c.leads * 100}%"></span>`;
-      return o;
+  function clinicChannels(el) {
+    const p = curPeriod();
+    const chans = scaledChannels(p);
+    const camps = scaledCampaigns(p);
+    const selCh = ((state.q.get('channel')) || '').split(',').filter(Boolean);
+    const selTr = state.q.get('treatment') || '';
+    const tot = {
+      spend: chans.reduce((a, c) => a + c.spend, 0), leads: chans.reduce((a, c) => a + c.leads, 0),
+      booked: chans.reduce((a, c) => a + c.booked, 0), arrived: chans.reduce((a, c) => a + c.arrived, 0),
+      paid: chans.reduce((a, c) => a + c.paid, 0), revAttr: camps.reduce((a, c) => a + c.rev, 0),
     };
-    const valsLine = (c) => `<div class="hb1vals"><span class="v" style="color:var(--hbt-paid)">${c.paid}</span><span class="l">שילמו</span> · <span class="v" style="color:var(--hbt-arr)">${c.arrived}</span><span class="l">הגיעו</span> · <span class="v" style="color:var(--hbt-book)">${c.booked}</span><span class="l">קבעו</span> · <span class="v" style="color:var(--muted)">${c.leads - c.booked}</span><span class="l">לא קבעו</span></div>`;
-    if (layout === '2') {
-      const seg2 = (n, leads, col, tc) => n <= 0 ? '' : `<span class="hb-seg hb2seg" style="width:${n / leads * 100}%;background:${col};color:${tc}">${n / leads * 100 >= 7 ? `<i>${n}</i>` : ''}</span>`;
-      return cs.map(c => `<div class="hb2r">
-        <span class="hb2nm">${c.name}</span>
-        <span class="hb2bar">${seg2(c.paid, c.leads, 'var(--hb-paid)', '#fff')}${seg2(c.arrived - c.paid, c.leads, 'var(--hb-arr)', '#14532d')}${seg2(c.booked - c.arrived, c.leads, 'var(--hb-book)', '#713f12')}<span class="hb-seg hb2ghost" style="width:${(c.leads - c.booked) / c.leads * 100}%"></span></span>
-        <b class="num hb2conv">${Math.round(c.paid / c.leads * 100)}%</b>
-      </div>`).join('') + legend;
-    }
-    if (layout === '3') {
-      return `<div class="hb3grid">` + cs.map(c => `<div class="hb3c">
-        <div class="hb3nm">${c.name}</div>
-        <div class="hb3top"><b class="num">${c.leads}</b><span class="hb3l">לידים</span><span class="num hb3conv">${Math.round(c.paid / c.leads * 100)}% שילמו</span></div>
-        <div class="hb3bar">${segsT(c)}</div>
-        <div class="hb3chips"><span style="color:var(--hbt-book)">קבעו ${c.booked}</span><span style="color:var(--hbt-arr)">הגיעו ${c.arrived}</span><span style="color:var(--hbt-paid)">שילמו ${c.paid}</span></div>
-      </div>`).join('') + `</div>`;
-    }
-    if (layout === '4') {
-      const mx = Math.max(...cs.map(c => c.leads));
-      return cs.map(c => `<div class="hb1r">
-        <div class="hb1top"><span class="hb1nm">${c.name}</span><b class="num hb1tot">${c.leads}</b></div>
-        <div class="hb4wrap"><span class="hb4bar" style="width:${c.leads / mx * 100}%">${segsT(c)}</span></div>
-      </div>`).join('') + legend;
-    }
-    return cs.map(c => `<div class="hb1r">
-      <div class="hb1top"><span class="hb1nm">${c.name}</span><b class="num hb1tot">${c.leads} לידים</b></div>
-      <div class="hb1bar">${segsT(c)}</div>
-      ${valsLine(c)}
-    </div>`).join('') + legend;
-  }
-
-  function boardCampaigns(el) {
-    const sum = (f) => BOARD.campaigns.reduce((a, c) => a + c[f], 0);
-    const totals = { spend: sum('spend'), leads: sum('leads'), booked: sum('booked'), paid: sum('paid'), revenue: sum('revenue') };
-    const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
-      <div class="ac-num num">${value}</div><div class="ac-label">${label}<span class="info-i">i</span></div></div>`;
-    const tile = (label, value, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
-      <div class="msg-num num" style="font-size:20px">${value}</div><div class="msg-label">${label}<span class="info-i">i</span></div></div>`;
-    const CD = [['+12% לידים', true], ['+4% לידים', true], ['+18% לידים', true], ['−5% לידים', false], ['+2 לידים', true], ['+7% לידים', true]];
-    const sel = Math.min(state.campSel == null ? 0 : state.campSel, BOARD.campaigns.length - 1);
-    const c = BOARD.campaigns[sel];
-    const flKey = 'wa-funnel-default';
-    const urlFl = new URLSearchParams(location.search).get('fl');
-    const curFl = urlFl || state.campFunnelLayout || localStorage.getItem(flKey) || '1';
-    const flSetDef = localStorage.getItem('wa-funnel-setdef') === '1';
-    const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '—';
-    const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : (c.paid ? 'ללא עלות' : '—');
-    const roas = c.spend ? (c.revenue / c.spend).toFixed(1) : '—';
-    const trend = Array.from({ length: 14 }, (_, i) => Math.max(0, Math.round(c.leads / 14 * (0.55 + ((i * 7 + sel * 3 + 2) % 5) * 0.22))));
-    const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
-    const rowHtml = (cc, i) => {
-      const rcpl = cc.spend && cc.leads ? ils(Math.round(cc.spend / cc.leads)) : '—';
-      const rroas = cc.spend ? '×' + (cc.revenue / cc.spend).toFixed(1) : '—';
-      return `<tr data-rowcamp="${i}" style="cursor:pointer${i === sel ? ';background:var(--gray-soft)' : ''}">
-        <td data-h="קמפיין"><b>${cc.name}</b></td>
-        <td data-h="ערוץ"><span class="badge blue">${cc.channel}</span></td>
-        <td data-h="הוצאה" class="num">${cc.spend ? ils(cc.spend) : '—'}</td>
-        <td data-h="לידים" class="num">${cc.leads}</td>
-        <td data-h="עלות לליד" class="num">${rcpl}</td>
-        <td data-h="קבעו תור" class="num">${cc.booked}</td>
-        <td data-h="הגיעו" class="num">${cc.arrived}</td>
-        <td data-h="שילמו" class="num">${cc.paid}</td>
-        <td data-h="הכנסה" class="num">${ils(cc.revenue)}</td>
+    const roas = tot.spend ? '×' + (tot.revAttr / tot.spend).toFixed(1) : '—';
+    const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}"><div class="ac-num num">${value}</div><div class="ac-label">${label}<span class="info-i">i</span></div></div>`;
+    const chUrl = (chs, tr) => {
+      const q = new URLSearchParams();
+      if (chs.length) q.set('channel', chs.join(','));
+      if (tr) q.set('treatment', tr);
+      if (p !== 'month') q.set('p', p);
+      const s = q.toString();
+      return '#/channels' + (s ? '?' + s : '');
+    };
+    const one = selCh.length === 1 ? chans.find(c => c.key === selCh[0]) : null;
+    const fs = one || tot;
+    const visCamps = camps.filter(c => (!selCh.length || selCh.includes(c.channel)) && (!selTr || c.treatment === selTr));
+    const sum = (f2) => visCamps.reduce((a, c) => a + c[f2], 0);
+    const campRow = (c) => {
+      const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '—';
+      const rroas = c.spend ? '×' + (c.rev / c.spend).toFixed(1) : '—';
+      return `<tr data-camp="${c.key}" style="cursor:pointer">
+        <td data-h="קמפיין"><b>${c.name}</b>${c.unmapped ? ' <span class="badge yellow">ממתין למיפוי</span>' : ''}</td>
+        <td data-h="ערוץ"><span class="badge blue">${chanName(c.channel)}</span></td>
+        <td data-h="טיפול">${c.treatment}</td>
+        <td data-h="הוצאה" class="num">${c.spend ? ils(c.spend) : '—'}</td>
+        <td data-h="לידים" class="num">${c.leads}</td>
+        <td data-h="עלות לליד" class="num">${cpl}</td>
+        <td data-h="נקבעו" class="num">${c.booked}</td>
+        <td data-h="הגיעו" class="num">${c.arrived}</td>
+        <td data-h="שילמו" class="num">${c.paid}</td>
+        <td data-h="הכנסה משויכת" class="num">${c.revNull ? '—' : ils(c.rev)}</td>
         <td data-h="החזר" class="num">${rroas}</td>
       </tr>`;
     };
-    el.innerHTML = `
-      <div class="board-tabs" style="margin-top:0">
-        <span class="board-tab active">החודש</span><span class="board-tab" style="opacity:.55">7 ימים</span><span class="board-tab" style="opacity:.55">90 ימים</span>
-        <span class="board-tab" style="opacity:.55">ערוץ: הכל</span><span class="board-tab" style="opacity:.55">טיפול: הכל</span>
-      </div>
+    const respBar = `<div class="rtbar">${RESP.buckets.map(([l, v, c]) => `<span class="rtseg" style="width:${v}%;background:${c}" data-tip="${l}: ${v}%"></span>`).join('')}</div>`;
+    el.innerHTML = clinicHead('ערוצים וקמפיינים', `תקופה: ${pname(p)} · בסיס מדדי קוהורט: לפי תאריך ליד · בסיס מדדי פעילות: לפי תאריך אירוע`) + `
       <div class="att-counters c6">
-        ${counter('הוצאה', ils(totals.spend), 'var(--ac-red)')}
-        ${counter('לידים', totals.leads, 'var(--ac-blue)')}
-        ${counter('קבעו תור', totals.booked, 'var(--ac-orange)')}
-        ${counter('שילמו', totals.paid, 'var(--ac-green)')}
-        ${counter('הכנסה', ils(totals.revenue), 'var(--ac-purple)')}
-        ${counter('החזר על ההוצאה', '×' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
+        ${counter('הוצאה', ils(tot.spend), 'var(--ac-red)')}
+        ${counter('לידים', tot.leads, 'var(--ac-blue)')}
+        ${counter('תורים שנקבעו', tot.booked, 'var(--ac-orange)')}
+        ${counter('מטופלים משלמים חדשים', tot.paid, 'var(--ac-green)')}
+        ${counter('הכנסות משויכות', ils(tot.revAttr), 'var(--ac-purple)')}
+        ${counter('החזר על ההוצאה', roas, 'var(--green)')}
       </div>
-      <div class="card" style="margin:0 0 12px"><h3>השוואת קמפיינים</h3>
+      <div class="card" style="margin:0 0 12px">
+        <div class="filt-row"><span class="filt-l">ערוץ:</span>
+          ${CD.channels.map(c => `<a class="board-tab ${selCh.includes(c.key) ? 'active' : ''}" href="${chUrl(selCh.includes(c.key) ? selCh.filter(k => k !== c.key) : [...selCh, c.key], selTr)}">${c.name}</a>`).join('')}
+          ${selCh.length ? `<a class="board-tab" href="${chUrl([], selTr)}" style="opacity:.7">נקה</a>` : ''}
+        </div>
+        <div class="filt-row"><span class="filt-l">טיפול:</span>
+          ${CD.treatments.map(t => `<a class="board-tab ${selTr === t ? 'active' : ''}" href="${chUrl(selCh, selTr === t ? '' : t)}">${t}</a>`).join('')}
+          ${selTr ? `<a class="board-tab" href="${chUrl(selCh, '')}" style="opacity:.7">נקה</a>` : ''}
+        </div>
+      </div>
+      <div class="card" style="margin:0 0 12px"><h3>המשפך${one ? ' — ' + one.name : ' — כל הערוצים'} <span class="chip">לפי תאריך ליד</span></h3>
+        ${funnelBars([['לידים', fs.leads], ['קבעו תור', fs.booked], ['הגיעו', fs.arrived], ['שילמו', fs.paid]])}
+        <div class="cell-sub" style="margin-top:8px">⚠ חלק מהקוהורט צעיר משבועיים — אחוזי ההמרה עשויים להשתנות ככל שהקוהורט מתבגר.</div>
+      </div>
+      <div class="card" style="margin:0 0 12px"><h3>משפך לפי ערוץ <span class="chip">לפי תאריך ליד</span></h3>
         <div class="tbl-wrap"><table class="tbl tbl-rows">
-          <thead><tr><th>קמפיין</th><th>ערוץ</th><th>הוצאה</th><th>לידים</th><th>עלות לליד</th><th>קבעו תור</th><th>הגיעו</th><th>שילמו</th><th>הכנסה</th><th>החזר</th></tr></thead>
-          <tbody>${BOARD.campaigns.map(rowHtml).join('')}</tbody>
+          <thead><tr><th>ערוץ</th><th>לידים</th><th>נקבעו %</th><th>הגיעו %</th><th>שילמו %</th><th>מקצה לקצה</th><th>עלות למטופל משלם</th><th>מול תקופה קודמת</th></tr></thead>
+          <tbody>${chans.map(c => {
+            const pc = (a, b) => Math.round(a / (b || 1) * 100) + '%';
+            const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : (c.paid ? 'ללא עלות' : '—');
+            return `<tr><td data-h="ערוץ"><b>${c.name}</b></td><td data-h="לידים" class="num">${c.leads}</td>
+              <td data-h="נקבעו" class="num">${pc(c.booked, c.leads)}</td><td data-h="הגיעו" class="num">${pc(c.arrived, c.booked)}</td>
+              <td data-h="שילמו" class="num">${pc(c.paid, c.arrived)}</td><td data-h="מקצה לקצה"><b class="num">${pc(c.paid, c.leads)}</b></td>
+              <td data-h="עלות למטופל" class="num">${cpp}</td>
+              <td data-h="מול קודמת"><span style="color:${c.up ? 'var(--mint-ink)' : 'var(--red)'}">${c.delta}</span></td></tr>`;
+          }).join('')}</tbody>
         </table></div>
-        <div class="cell-sub" style="margin-top:8px">לחיצה על שורה פותחת זום מלא על הקמפיין למטה.</div>
+        <div class="cell-sub" style="margin-top:8px">איזה ערוץ מביא ואיפה הוא נוזל. עלות למטופל משלם = הוצאת הערוץ חלקי מטופלים ששילמו.</div>
       </div>
-      <div class="card" style="margin:0"><h3>זום על קמפיין</h3>
-        <div class="board-tabs" style="flex-wrap:wrap;margin-bottom:12px">${BOARD.campaigns.map((cc, i) => `<button class="board-tab ${i === sel ? 'active' : ''}" data-csel="${i}">${cc.name}</button>`).join('')}</div>
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><h4 style="margin:0">${c.name}</h4><span class="badge blue">${c.channel}</span><span class="cell-sub" style="color:${CD[sel][1] ? 'var(--mint-ink)' : 'var(--red)'}">${CD[sel][0]} מול חודש קודם</span></div>
-        <div class="msg-stats c4" style="margin:2px 0 8px">
-          ${tile('הוצאה', ils(c.spend), 'var(--ac-red)')}
-          ${tile('לידים', c.leads, 'var(--ac-blue)')}
-          ${tile('עלות לליד', cpl, 'var(--ac-cyan)')}
-          ${tile('קבעו תור', c.booked, 'var(--ac-orange)')}
-          ${tile('הגיעו', c.arrived, 'var(--ac-olive)')}
-          ${tile('שילמו', c.paid, 'var(--ac-green)')}
-          ${tile('הכנסה', ils(c.revenue), 'var(--ac-purple)')}
-          ${tile('החזר על ההוצאה', roas === '—' ? '—' : '×' + roas, 'var(--green)')}
-        </div>
-        <div class="cell-sub" style="margin:0 0 12px">עלות למטופל משלם: <b>${cpp}</b></div>
-        <div class="dash-2col">
-          <div>
-            <h4 style="margin:0 0 8px">המשפך של הקמפיין</h4>
-            <div class="board-tabs hb-tabs" style="flex-wrap:wrap">${FN_LAYOUTS.map(([k, l]) => `<button class="board-tab ${curFl === k ? 'active' : ''}" data-fl2="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
-              <label class="fn-def"><input type="checkbox" id="fl2-def" ${flSetDef ? 'checked' : ''}> קבע כברירת מחדל</label></div>
-            ${fnRender(curFl, c, 'camp')}
-            ${fnChips(stages)}
-          </div>
-          <div>
-            <h4 style="margin:0 0 8px">לידים — 14 ימים אחרונים</h4>
-            ${c2chart(trend, { labels: trend.map((_, i) => (i % 2 === 0 ? String(i + 1) : '')), tip: (i) => `${trend[i]} לידים` })}
-          </div>
-        </div>
-      </div>`;
-    el.querySelectorAll('[data-csel]').forEach(b => b.onclick = () => { state.campSel = +b.dataset.csel; boardCampaigns(el); });
-    el.querySelectorAll('[data-rowcamp]').forEach(r => r.onclick = () => { state.campSel = +r.dataset.rowcamp; boardCampaigns(el); });
-    const flBox = el.querySelector('#fl2-def');
-    flBox.onchange = () => {
-      localStorage.setItem('wa-funnel-setdef', flBox.checked ? '1' : '0');
-      if (flBox.checked) localStorage.setItem(flKey, state.campFunnelLayout || curFl);
-    };
-    el.querySelectorAll('[data-fl2]').forEach(b => b.onclick = () => {
-      state.campFunnelLayout = b.dataset.fl2;
-      if (flBox.checked) localStorage.setItem(flKey, b.dataset.fl2);
-      boardCampaigns(el);
-    });
-  }
-
-  const FCOL = [['var(--fc0a)', 'var(--fc0b)'], ['var(--fc1a)', 'var(--fc1b)'], ['var(--fc2a)', 'var(--fc2b)'], ['var(--fc3a)', 'var(--fc3b)']];
-  const FN_LAYOUTS = [['1', 'משפך קלאסי'], ['2', 'חצים'], ['3', 'סרגלים'], ['4', 'טבעות'], ['5', 'כרטיסים'], ['6', 'זרימה']];
-
-  function fnChips(stages) {
-    const total = Math.round(stages[3][1] / stages[0][1] * 100);
-    let worst = 1, best = 1;
-    for (let i = 1; i < 4; i++) {
-      const p = stages[i][1] / stages[i - 1][1];
-      if (p < stages[worst][1] / stages[worst - 1][1]) worst = i;
-      if (p > stages[best][1] / stages[best - 1][1]) best = i;
-    }
-    const pc = (i) => Math.round(stages[i][1] / stages[i - 1][1] * 100) + '%';
-    return `<div class="chips"><span class="chip">המרה מקצה לקצה <b class="num">${total}%</b></span><span class="chip">הנשירה הגדולה: ${stages[worst - 1][0]} → ${stages[worst][0]} <b class="num">${pc(worst)}</b></span><span class="chip">המעבר החזק: ${stages[best - 1][0]} → ${stages[best][0]} <b class="num">${pc(best)}</b></span></div>`;
-  }
-
-  function fnRender(layout, c, ci) {
-    const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
-    const N = 4, uid = `fn${layout}${ci}`;
-    const conv = (i) => Math.round(stages[i][1] / stages[i - 1][1] * 100) + '%';
-    const lost = (i) => stages[i - 1][1] - stages[i][1];
-    const grads = (dir) => FCOL.map((g, i) => `<linearGradient id="${uid}${dir}${i}" x1="0" y1="0" x2="${dir === 'h' ? 1 : 0}" y2="${dir === 'h' ? 0 : 1}"><stop offset="0" style="stop-color:${g[0]}"/><stop offset="1" style="stop-color:${g[1]}"/></linearGradient>`).join('');
-    const mob = window.innerWidth < 640;
-
-    if (layout === '1') {
-      const W = mob ? 480 : 900, H = 340, cx = mob ? 165 : 290, top = mob ? 270 : 480, bot = mob ? 100 : 150, gap = 8, sh = (H - gap * (N - 1)) / N, step = (top - bot) / N;
-      const px = mob ? 320 : 610, pw = mob ? 145 : 180;
-      let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('v')}</defs>`;
-      stages.forEach(([nm, v], i) => {
-        const y = i * (sh + gap), wt = top - i * step, wb = top - (i + 1) * step;
-        o += `<polygon fill="url(#${uid}v${i})" points="${cx - wt / 2},${y} ${cx + wt / 2},${y} ${cx + wb / 2},${y + sh} ${cx - wb / 2},${y + sh}"/>
-        <polygon fill="rgba(255,255,255,.12)" points="${cx - wt / 2},${y} ${cx + wt / 2},${y} ${cx + (wt + wb) / 4},${y + sh / 2} ${cx - (wt + wb) / 4},${y + sh / 2}"/>
-        <text x="${cx}" y="${y + sh / 2 - 2}" text-anchor="middle" fill="#fff" fill-opacity=".9" font-size="${mob ? 13 : 15}" font-weight="700">${nm}</text>
-        <text x="${cx}" y="${y + sh / 2 + 24}" text-anchor="middle" fill="#fff" font-size="${mob ? 18 : 22}" font-weight="700">${v}</text>`;
-        if (i) {
-          const ex = cx + wt / 2 + 10, py = y - gap / 2;
-          o += `<line x1="${ex}" y1="${py}" x2="${px - 6}" y2="${py}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/><circle cx="${ex}" cy="${py}" r="3" class="ft"/>
-          <rect x="${px}" y="${py - 17}" width="${pw}" height="34" rx="17" class="fchip"/>
-          <text x="${px + (mob ? 14 : 18)}" y="${py + 6}" class="ftg" font-size="${mob ? 15 : 17}" font-weight="800">${conv(i)}</text>
-          <text x="${px + (mob ? 60 : 78)}" y="${py + 5}" class="ftr" font-size="${mob ? 12 : 14}">−${lost(i)} ירדו</text>`;
-        }
-      });
-      return o + '</svg>';
-    }
-    if (layout === '2') {
-      const hs = [140, 118, 100, 86];
-      return `<div class="chev">` + stages.map(([nm, v], i) => `
-        <div class="c"><div class="shape" style="height:${hs[i]}px;background:linear-gradient(135deg,${FCOL[i][0]},${FCOL[i][1]})">${nm}</div>
-        <div class="meta"><div class="v num">${v}</div><div class="cv">${i ? `<em class="num">${conv(i)}</em> מהשלב הקודם` : 'נקודת פתיחה'}</div></div></div>`).join('') + `</div>`;
-    }
-    if (layout === '3') {
-      return `<div class="bars">` + stages.map(([nm, v], i) => {
-        const w = Math.max(12, Math.round(100 * Math.pow(v / stages[0][1], .4)));
-        return `<div class="bar-row"><div class="lab"><b>${nm}</b><span class="num">${v}</span></div>
-        <div class="track"><div class="fill" style="width:${w}%;color:${FCOL[i][1]};background:linear-gradient(90deg,${FCOL[i][1]},${FCOL[i][0]} 50%,${FCOL[i][1]})"></div></div>
-        <div class="cv">${i ? `<b class="num">${conv(i)}</b><i class="num">−${lost(i)} ירדו</i>` : '<b>100%</b><i>פתיחה</i>'}</div></div>`;
-      }).join('') + `</div>`;
-    }
-    if (layout === '4') {
-      const W = mob ? 480 : 900, H = mob ? 290 : 420, cx = mob ? 130 : 250, bottom = mob ? 278 : 405, R = mob ? 120 : 190, dr = mob ? 30 : 42;
-      const lx = mob ? 280 : 560, tx = mob ? 292 : 575, cvx = mob ? 428 : 760;
-      const rs = stages.map((_, i) => R - i * dr);
-      let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('v')}</defs>`;
-      stages.forEach((_, i) => { o += `<circle cx="${cx}" cy="${bottom - rs[i]}" r="${rs[i]}" fill="url(#${uid}v${i})" stroke="var(--card)" stroke-width="3"/>`; });
-      stages.forEach(([nm, v], i) => {
-        const t = bottom - 2 * rs[i], nt = i < N - 1 ? bottom - 2 * rs[i + 1] : bottom - rs[i] - 14;
-        const y = i < N - 1 ? (t + nt) / 2 : bottom - rs[i];
-        o += `<circle cx="${cx}" cy="${y}" r="3.5" fill="#fff"/>
-        <line x1="${cx}" y1="${y}" x2="${lx}" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
-        <text x="${tx}" y="${y - 2}" font-size="${mob ? 13 : 16}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
-        <text x="${tx}" y="${y + (mob ? 17 : 20)}" class="ft" font-size="${mob ? 16 : 22}" font-weight="700">${v}</text>
-        <text x="${cvx}" y="${y + (mob ? 18 : 21)}" class="ftg" font-size="${mob ? 14.5 : 20}" font-weight="800">${i ? conv(i) : ''}</text>`;
-      });
-      return o + '</svg>';
-    }
-    if (layout === '5') {
-      return `<div class="fcards">` + stages.map(([nm, v], i) => {
-        const w = 100 - i * 10, pp = i ? Math.max(stages[i][1] / stages[i - 1][1] * 100, 2) : 100;
-        return `<div class="fcard" style="width:${w}%;--c:${FCOL[i][0]};--p:${Math.round(pp)}">
-          <div class="ring"><i class="num">${i ? conv(i) : '100%'}</i></div>
-          <div><div class="n">${nm}</div><div class="v num">${v}</div></div>
-          <div class="lost num">${i ? `−${lost(i)} ירדו` : 'נקודת פתיחה'}</div></div>`;
-      }).join('') + `</div>`;
-    }
-    // layout 6: curved flow (mirrored: starts at right for RTL)
-    const W = mob ? 480 : 900, H = mob ? 300 : 380, cy = mob ? 140 : 175, nw = mob ? 12 : 16;
-    const xs = stages.map((_, i) => (mob ? 452 : 870) - i * (mob ? 145 : 280));
-    const hs = stages.map(([, v]) => Math.max(mob ? 16 : 20, Math.round((mob ? 185 : 240) * Math.pow(v / stages[0][1], .36))));
-    let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('h')}</defs>`;
-    for (let i = 0; i < N - 1; i++) {
-      const x1 = xs[i], x2 = xs[i + 1] + nw, m = (x1 + x2) / 2, a = hs[i] / 2, b = hs[i + 1] / 2;
-      o += `<path fill="url(#${uid}h${i})" fill-opacity=".55" d="M${x1},${cy - a} C${m},${cy - a} ${m},${cy - b} ${x2},${cy - b} L${x2},${cy + b} C${m},${cy + b} ${m},${cy + a} ${x1},${cy + a} Z"/>
-      <text x="${m}" y="${H - (mob ? 28 : 32)}" text-anchor="middle" class="ftg" font-size="${mob ? 15 : 22}" font-weight="800">${conv(i + 1)}</text>
-      <text x="${m}" y="${H - 9}" text-anchor="middle" class="ftr" font-size="${mob ? 12 : 16}">−${lost(i + 1)} ירדו</text>`;
-    }
-    stages.forEach(([nm, v], i) => {
-      const x = xs[i], tp = cy - hs[i] / 2;
-      o += `<rect x="${x}" y="${tp}" width="${nw}" height="${hs[i]}" rx="6" style="fill:${FCOL[i][0]}"/>
-      <text x="${x + nw / 2}" y="${tp - (mob ? 28 : 34)}" text-anchor="middle" font-size="${mob ? 12.5 : 16}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
-      <text x="${x + nw / 2}" y="${tp - 9}" text-anchor="middle" class="ft" font-size="${mob ? 16 : 21}" font-weight="700">${v}</text>`;
-    });
-    return o + '</svg>';
-  }
-
-  function boardFunnel(el) {
-    const urlFl = new URLSearchParams(location.search).get('fl');
-    const legacy = localStorage.getItem('wa-funnel-layout');
-    if (legacy && !localStorage.getItem('wa-funnel-default')) { localStorage.setItem('wa-funnel-default', legacy); localStorage.removeItem('wa-funnel-layout'); }
-    const savedDef = localStorage.getItem('wa-funnel-default') || '1';
-    const cur = urlFl || state.funnelLayout || savedDef;
-    const setDef = localStorage.getItem('wa-funnel-setdef') === '1';
-    const sum = (f) => BOARD.channelFunnels.reduce((a, c) => a + c[f], 0);
-    const tot = { leads: sum('leads'), booked: sum('booked'), arrived: sum('arrived'), paid: sum('paid') };
-    const totStages = [['לידים', tot.leads], ['קבעו תור', tot.booked], ['הגיעו', tot.arrived], ['שילמו', tot.paid]];
-    const rowHtml = (ch) => {
-      const e2e = Math.round(ch.paid / ch.leads * 100) + '%';
-      const cpp = ch.spend && ch.paid ? ils(Math.round(ch.spend / ch.paid)) : 'ללא עלות';
-      return `<tr>
-        <td data-h="ערוץ"><b>${ch.name}</b></td>
-        <td data-h="לידים" class="num">${ch.leads}</td>
-        <td data-h="קבעו תור" class="num">${ch.booked}</td>
-        <td data-h="הגיעו" class="num">${ch.arrived}</td>
-        <td data-h="שילמו" class="num">${ch.paid}</td>
-        <td data-h="המרה מקצה לקצה"><b class="num">${e2e}</b></td>
-        <td data-h="עלות למטופל משלם" class="num">${cpp}</td>
-        <td data-h="מול חודש קודם"><span style="color:${ch.up ? 'var(--mint-ink)' : 'var(--red)'}">${ch.delta}</span></td>
-      </tr>`;
-    };
-    el.innerHTML = `
-      <div class="board-tabs" style="margin-top:0;flex-wrap:wrap;align-items:center">
-        ${FN_LAYOUTS.map(([k, l]) => `<button class="board-tab ${cur === k ? 'active' : ''}" data-fl="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
-        <label class="fn-def"><input type="checkbox" id="fn-def" ${setDef ? 'checked' : ''}> קבע כברירת מחדל</label>
-      </div>
-      <div class="card" style="margin:0 0 12px"><h3>המשפך הכללי — כל הערוצים</h3>
-        ${fnRender(cur, tot, 'agg')}
-        ${fnChips(totStages)}
-      </div>
-      <div class="card" style="margin:0 0 12px"><h3>משפך לפי ערוץ</h3>
+      <div class="card" style="margin:0 0 12px"><h3>קמפיינים <span class="chip">הכנסה: משויכת לפרסום בלבד</span></h3>
         <div class="tbl-wrap"><table class="tbl tbl-rows">
-          <thead><tr><th>ערוץ</th><th>לידים</th><th>קבעו תור</th><th>הגיעו</th><th>שילמו</th><th>המרה מקצה לקצה</th><th>עלות למטופל משלם</th><th>מול חודש קודם</th></tr></thead>
-          <tbody>${BOARD.channelFunnels.map(rowHtml).join('')}</tbody>
+          <thead><tr><th>קמפיין</th><th>ערוץ</th><th>טיפול</th><th>הוצאה</th><th>לידים</th><th>עלות לליד</th><th>נקבעו</th><th>הגיעו</th><th>שילמו</th><th>הכנסה משויכת</th><th>החזר</th></tr></thead>
+          <tbody>${visCamps.map(campRow).join('')}
+            <tr class="sum-row"><td data-h="קמפיין"><b>סה״כ (${visCamps.length})</b></td><td></td><td></td>
+              <td data-h="הוצאה" class="num">${ils(sum('spend'))}</td><td data-h="לידים" class="num">${sum('leads')}</td>
+              <td data-h="עלות לליד" class="num">${sum('spend') && sum('leads') ? ils(Math.round(sum('spend') / sum('leads'))) : '—'}</td>
+              <td data-h="נקבעו" class="num">${sum('booked')}</td><td data-h="הגיעו" class="num">${sum('arrived')}</td>
+              <td data-h="שילמו" class="num">${sum('paid')}</td><td data-h="הכנסה משויכת" class="num">${ils(sum('rev'))}</td>
+              <td data-h="החזר" class="num">${sum('spend') ? '×' + (sum('rev') / sum('spend')).toFixed(1) : '—'}</td></tr>
+          </tbody>
         </table></div>
-        <div class="cell-sub" style="margin-top:8px">איזה ערוץ מביא ואיפה הוא נוזל. עלות למטופל משלם = הוצאת הערוץ חלקי מטופלים ששילמו — המספר שאיתו מעבירים תקציב בין ערוצים.</div>
+        <div class="cell-sub" style="margin-top:8px">לחיצה על שורה פותחת זום מלא על הקמפיין. שורת הסיכום זהה לכרטיסי ה-KPI למעלה.</div>
       </div>
-      <div class="card" style="margin:0"><h3>זמן מענה ראשון מול אחוז סגירה</h3>
-        <div class="att-counters c3">
-          <div class="att-counter" style="--ac:var(--ac-green)"><div class="ac-num num">34%</div><div class="ac-label">מענה תוך 5 דקות</div></div>
-          <div class="att-counter" style="--ac:var(--ac-orange)"><div class="ac-num num">19%</div><div class="ac-label">מענה תוך שעה</div></div>
-          <div class="att-counter" style="--ac:var(--ac-red)"><div class="ac-num num">7%</div><div class="ac-label">מענה מעל שעה</div></div>
-        </div>
-        <div class="cell-sub" style="margin-top:8px">אחוז הלידים שקבעו תור, לפי זמן המענה הראשון לפנייה (מניתוח ה-webhook של השיחות). מענה מהיר מכפיל את הסיכוי לתור פי כמה — הסיבה שהאוטומציה של המענה הראשון קריטית.</div>
+      <div class="card" style="margin:0"><h3>זמן מענה ראשון <span class="chip">שעון מלא</span></h3>
+        ${respBar}
+        <div class="chart-legend" style="margin-top:8px">${RESP.buckets.map(([l, v, c]) => `<span><span class="dotk" style="background:${c}"></span>${l} · <b class="num">${v}%</b></span>`).join('')}</div>
+        <div class="cell-sub" style="margin-top:8px">חציון זמן מענה: <b class="num">${RESP.median}</b> · מענה מהיר מכפיל את הסיכוי לקביעת תור — הסיבה שאוטומציית המענה הראשון קריטית.</div>
       </div>`;
-    const defBox = el.querySelector('#fn-def');
-    defBox.onchange = () => {
-      localStorage.setItem('wa-funnel-setdef', defBox.checked ? '1' : '0');
-      if (defBox.checked) localStorage.setItem('wa-funnel-default', state.funnelLayout || cur);
-    };
-    el.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => {
-      state.funnelLayout = b.dataset.fl;
-      if (defBox.checked) localStorage.setItem('wa-funnel-default', b.dataset.fl);
-      boardFunnel(el);
-    });
+    el.querySelectorAll('[data-camp]').forEach(tr => tr.onclick = () => { location.hash = '#/channels/campaign/' + tr.dataset.camp + (p !== 'month' ? '?p=' + p : ''); });
   }
 
-  function boardAttention(el) {
-    const colors = ['var(--ac-red)', 'var(--ac-orange)', 'var(--ac-blue)', 'var(--ac-purple)'];
-    el.innerHTML = `
-      <div class="att-counters">
-        ${BOARD.attention.map((g, i) => `<div class="att-counter has-tip" data-tip="${TIP[g.title] || ''}" tabindex="0" style="--ac:${colors[i % 4]}">
-          <div class="ac-num num">${g.rows.length}</div><div class="ac-label">${g.title}<span class="info-i">i</span></div>
-        </div>`).join('')}
+  function clinicCampaign(el, key) {
+    const p = curPeriod();
+    const c = scaledCampaigns(p).find(x => x.key === key) || scaledCampaigns(p)[0];
+    const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '—';
+    const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : (c.paid ? 'ללא עלות' : '—');
+    const roas = c.spend ? '×' + (c.rev / c.spend).toFixed(1) : '—';
+    const kh = key.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
+    const trend = Array.from({ length: 14 }, (_, i) => Math.max(0, Math.round(c.leads / 14 * (0.55 + ((i * 7 + kh) % 5) * 0.22))));
+    const now = new Date();
+    const dstr = (d) => String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+    const labels = trend.map((_, i) => { const d = new Date(now); d.setDate(d.getDate() - (13 - i)); return i % 2 === 0 ? dstr(d) : ''; });
+    const tile = (label, value, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}"><div class="msg-num num" style="font-size:20px">${value}</div><div class="msg-label">${label}<span class="info-i">i</span></div></div>`;
+    el.innerHTML = clinicHead(c.name, '') + `
+      <div style="margin-bottom:12px"><a href="#/channels${p !== 'month' ? '?p=' + p : ''}" style="color:var(--green);font-weight:600">← חזרה לערוצים וקמפיינים</a></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="badge blue">${chanName(c.channel)}</span>
+        ${c.treatment !== '—' ? `<span class="badge">${c.treatment}</span>` : ''}
+        ${c.status ? `<span class="badge ${c.status === 'פעיל' ? 'green' : ''}">${c.status}</span>` : ''}
+        ${c.unmapped ? '<span class="badge yellow">ממתין למיפוי — נספר בערוץ אבל לא בקמפיין</span>' : ''}
+        <span class="cell-sub">תקופה: ${pname(p)}</span>
       </div>
-      ${BOARD.attention.map((g, i) => `<details class="att-list card" style="--ac:${colors[i % 4]};margin:0 0 12px">
-        <summary><span class="att-title">${g.title}</span><span class="att-badge num">${g.rows.length}</span><span class="att-caret">◂</span></summary>
-        ${g.rows.map(r => `<div class="att-row">
-          <div class="a-top"><span class="a-name">${r.name}</span><span class="num cell-sub" style="direction:ltr">${r.phone}</span><span class="badge blue">${r.topic}</span></div>
-          <div class="cell-sub">${r.ago}</div>
-        </div>`).join('')}
-      </details>`).join('')}
-      <div class="guide">במערכת המלאה הרשימה נקראת ישירות מאיזיביזי בכל טעינה; פרטי מטופלים לא נשמרים בדשבורד.</div>`;
-  }
-
-  function boardMessages(el) {
-    const tile = (label, value, sub, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
-      <div class="msg-num num">${value}</div><div class="msg-label">${label}<span class="info-i">i</span></div>${sub ? `<div class="msg-sub num">${sub}</div>` : ''}
-    </div>`;
-    el.innerHTML = BOARD.templates.map(t => {
-      const ap = Math.round(t.answered / t.sent * 100);
-      return `<div class="card" style="margin:0 0 12px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h4 style="margin:0">${t.name}</h4><span class="badge">\u05EA\u05D1\u05E0\u05D9\u05EA</span></div>
-        <div class="msg-stats">
-          ${tile('\u05E0\u05E9\u05DC\u05D7\u05D5', t.sent, '', 'var(--ac-blue)')}
-          ${tile('\u05E2\u05E0\u05D5', t.answered, ap + '% \u05DE\u05D4\u05E0\u05E9\u05DC\u05D7\u05D5', 'var(--ac-green)')}
-          ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', t.booked == null ? '\u2014' : t.booked, '', 'var(--ac-orange)')}
-          ${tile('\u05E2\u05DC\u05D5\u05EA \u05E9\u05DC\u05D9\u05D7\u05D4', ils(t.cost), t.unsub ? `${t.unsub} \u05D1\u05D9\u05E7\u05E9\u05D5 \u05D4\u05E1\u05E8\u05D4` : '', 'var(--ac-purple)')}
+      <div class="msg-stats c4" style="margin:0 0 12px">
+        ${tile('הוצאה', c.spend ? ils(c.spend) : '—', 'var(--ac-red)')}
+        ${tile('לידים', c.leads, 'var(--ac-blue)')}
+        ${tile('עלות לליד', cpl, 'var(--ac-cyan)')}
+        ${tile('תורים שנקבעו', c.booked, 'var(--ac-orange)')}
+        ${tile('הגיעו', c.arrived, 'var(--ac-olive)')}
+        ${tile('מטופלים משלמים חדשים', c.paid, 'var(--ac-green)')}
+        ${tile('הכנסות משויכות', c.revNull ? '—' : ils(c.rev), 'var(--ac-purple)')}
+        ${tile('החזר על ההוצאה', roas, 'var(--green)')}
+      </div>
+      <div class="cell-sub" style="margin:0 0 12px">עלות למטופל משלם: <b>${cpp}</b></div>
+      <div class="dash-2col">
+        <div class="card" style="margin:0"><h3>המשפך של הקמפיין <span class="chip">לפי תאריך ליד</span></h3>
+          ${funnelBars([['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]])}
+        </div>
+        <div class="card" style="margin:0"><h3>לידים — 14 ימים אחרונים</h3>
+          <div dir="ltr">${c2chart(trend, { labels, tip: (i) => `${trend[i]} לידים` })}</div>
+          ${c.spend ? `<div class="cell-sub" style="margin-top:8px">הוצאה יומית ממוצעת: <b class="num">${ils(Math.round(c.spend / 30))}</b></div>` : ''}
         </div>
       </div>`;
-    }).join('');
   }
+
+  function clinicMessages(el) {
+    const p = curPeriod();
+    const f = PSCALE[p] || 1, r = (n) => Math.round(n * f);
+    const rows = TPLS.map(t => ({ ...t, sent: r(t.sent), replied: r(t.replied), booked: t.booked == null ? null : r(t.booked), optout: r(t.optout), cost: r(t.cost) }));
+    const sent = rows.reduce((a, t) => a + t.sent, 0), replied = rows.reduce((a, t) => a + t.replied, 0);
+    const booked = rows.reduce((a, t) => a + (t.booked || 0), 0), optouts = rows.reduce((a, t) => a + t.optout, 0), cost = rows.reduce((a, t) => a + t.cost, 0);
+    const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}"><div class="ac-num num">${value}</div><div class="ac-label">${label}<span class="info-i">i</span></div></div>`;
+    el.innerHTML = clinicHead('הודעות אוטומטיות', `חלון שליחה: ${CLINIC.followup} · תקופה: ${pname(p)}`) + `
+      <div class="att-counters c4">
+        ${counter('נשלחו', sent, 'var(--ac-blue)')}
+        ${counter('ענו', Math.round(replied / (sent || 1) * 100) + '%', 'var(--ac-green)')}
+        ${counter('קבעו תור', booked, 'var(--ac-orange)')}
+        ${counter('עלות משוערת', ils(cost), 'var(--ac-purple)')}
+      </div>
+      <div class="card" style="margin:0 0 12px"><h3>תבניות</h3>
+        <div class="tbl-wrap"><table class="tbl tbl-rows">
+          <thead><tr><th>תבנית</th><th>טריגר</th><th>נשלחו</th><th>ענו %</th><th>קבעו תור</th><th>הסרות</th><th>עלות (משוער)</th></tr></thead>
+          <tbody>${rows.map(t => `<tr>
+            <td data-h="תבנית"><b>${t.name}</b></td><td data-h="טריגר"><span class="badge">${t.trigger}</span></td>
+            <td data-h="נשלחו" class="num">${t.sent}</td>
+            <td data-h="ענו" class="num">${Math.round(t.replied / (t.sent || 1) * 100)}%</td>
+            <td data-h="קבעו תור" class="num">${t.booked == null ? '—' : t.booked}</td>
+            <td data-h="הסרות" class="num">${t.optout}</td>
+            <td data-h="עלות" class="num">${ils(t.cost)}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <div class="cell-sub" style="margin-top:8px">עלות משוערת = מנוי חודשי לספק ÷ הודעות, בתוספת תעריף שיחה — הערכה בלבד, מסומנת "משוער" בכל מקום. הסרות: ${optouts} בתקופה.</div>
+      </div>
+      <div class="card" style="margin:0;opacity:.75"><h3>הודעות לפי סטטוס <span class="badge yellow">בתצוגה מקדימה</span></h3>
+        <div class="cell-sub">התבניות מוכנות אך עוד לא משדרות — בחלון השליחה הקרוב (${CLINIC.followup}) <b>היו נשלחות 6 הודעות</b>.</div>
+      </div>`;
+  }
+
+  function clinicStatus(el) {
+    const badge = (s) => s === 'פעיל' ? '<span class="badge green"><span class="dot"></span>פעיל</span>'
+      : s === 'בתצוגה מקדימה' ? '<span class="badge yellow">בתצוגה מקדימה</span>'
+      : s === 'תקלה' ? '<span class="badge" style="background:var(--red);color:#fff">תקלה</span>' : '<span class="badge">טרם חובר</span>';
+    const count = (st) => SRCS.filter(s => s.status === st).length;
+    el.innerHTML = clinicHead('סטטוס המערכת', CLINIC.updatedAgo) + `
+      <div class="att-counters c4">
+        <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">${count('פעיל')}</div><div class="ac-label">פעיל</div></div>
+        <div class="att-counter" style="--ac:var(--yellow)"><div class="ac-num num">${count('בתצוגה מקדימה')}</div><div class="ac-label">בתצוגה מקדימה</div></div>
+        <div class="att-counter" style="--ac:var(--red)"><div class="ac-num num">${count('תקלה')}</div><div class="ac-label">תקלה</div></div>
+        <div class="att-counter" style="--ac:var(--muted)"><div class="ac-num num">${count('טרם חובר')}</div><div class="ac-label">טרם חובר</div></div>
+      </div>
+      <div class="sys-grid">
+        ${SRCS.map(s => `<div class="sys-tile"><div class="sys-tile-top"><span class="sys-name">${s.name}</span>${badge(s.status)}</div><span class="sys-meta">${s.meta}</span></div>`).join('')}
+      </div>
+      <div class="alert-strip" style="margin-top:14px"><span class="as-ico">ℹ</span><span><b>פרסום גוגל טרם חובר</b> — ההוצאה והלידים מגוגל לא נכללים כרגע בדוחות. כל שאר המקורות פעילים והדוחות מלאים לגביהם.</span></div>
+      <div class="guide" style="margin-top:10px">במקרה של תקלה תוצג כאן הודעה בשפה פשוטה: מה לא עובד, מה כן עובד, ומה עושים — ללא קודים טכניים.</div>`;
+  }
+
+
 
   const MAP_STAMP = '<span class="badge yellow">טרם אומת מול השרת</span>';
   const MAP_HOOKS = [
@@ -1755,38 +1669,159 @@
       ${WP_STAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.stage}</h3>${pg.note ? `<div class="cell-sub" style="margin:0 0 10px">${pg.note}</div>` : ''}<div class="tbl-wrap"><table class="tbl">${tblHead}<tbody>${pg.items.map(rowHtml).join('')}</tbody></table></div></div>`).join('')}`;
   }
 
-  function boardSystems(el) {
-    const badge = (s) => s === 'פעיל' ? '<span class="badge green"><span class="dot"></span>פעיל</span>'
-      : s === 'תצוגה מקדימה' ? '<span class="badge yellow">תצוגה מקדימה</span>' : '<span class="badge">לא נבנה</span>';
-    const count = (st) => BOARD.systems.filter(s => s.status === st).length;
-    const counters = [
-      ['פעיל', count('פעיל'), 'var(--mint-ink)'],
-      ['תצוגה מקדימה', count('תצוגה מקדימה'), 'var(--yellow)'],
-      ['לא נבנה', count('לא נבנה'), 'var(--muted)'],
+
+
+  /* ---------------- tech zone (demo; sanitized — no client-specific internals) ---------------- */
+  const TECH_PAGES = [['home', 'בקרה'], ['integrations', 'אינטגרציות'], ['mapping', 'מיפוי קיים כיום'], ['fieldmap', 'מיפוי שדות'], ['logs', 'לוגים'], ['freshness', 'טריות נתונים'], ['campaign-map', 'מיפוי קמפיינים'], ['workplan', 'תוכנית עבודה']];
+
+  function viewTech(page) {
+    clearInterval(state.convoTimer);
+    shell('tech', `<div class="tech-banner">⚙ אזור טכני — לא מוצג ללקוח · נתוני דמו בלבד</div><div id="tech-body"></div>`, null, 'tech', page);
+    const el = document.getElementById('tech-body');
+    ({ home: techHome, integrations: techIntegrations, mapping: boardMapping, fieldmap: boardFieldMap, logs: techLogs, freshness: techFreshness, 'campaign-map': techCampaignMap, workplan: boardWorkPlan }[page] || techHome)(el);
+  }
+  function techHead(title, sub) {
+    return `<div class="page-head"><h1>${title}</h1><span class="badge yellow">נתוני דמו</span></div>${sub ? `<div class="cell-sub" style="margin:2px 0 14px">${sub}</div>` : ''}`;
+  }
+
+  function techHome(el) {
+    el.innerHTML = techHead('בקרה טכנית', 'מבט מהיר על בריאות הקריאה והסנכרון') + `
+      <div class="att-counters c4">
+        <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num" style="font-size:20px">הצליח · 03:00</div><div class="ac-label">סנכרון לילי אחרון</div></div>
+        <div class="att-counter" style="--ac:var(--ac-blue)"><div class="ac-num num">6/8</div><div class="ac-label">מקורות פעילים</div></div>
+        <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">0</div><div class="ac-label">ממתינים ב-dead-letter</div></div>
+        <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">0.4%</div><div class="ac-label">פער התאמה אחרון</div></div>
+      </div>
+      <div class="card" style="margin:0 0 12px"><h3>ריצות סנכרון אחרונות</h3>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>התחלה</th><th>סוג</th><th>טווח</th><th>נקלטו</th><th>עודכנו</th><th>פערים שתוקנו</th><th>סטטוס</th></tr></thead>
+          <tbody>
+            <tr><td class="num">היום 03:00</td><td>לילי</td><td>14 ימים</td><td class="num">212</td><td class="num">38</td><td class="num">0</td><td><span class="badge green"><span class="dot"></span>הצליח</span></td></tr>
+            <tr><td class="num">אתמול 03:00</td><td>לילי</td><td>14 ימים</td><td class="num">198</td><td class="num">41</td><td class="num">2</td><td><span class="badge green"><span class="dot"></span>הצליח</span></td></tr>
+            <tr><td class="num">אתמול 14:22</td><td>ידני</td><td>7 ימים</td><td class="num">96</td><td class="num">12</td><td class="num">0</td><td><span class="badge green"><span class="dot"></span>הצליח</span></td></tr>
+          </tbody>
+        </table></div>
+        <div style="margin-top:12px"><button class="btn secondary" id="sync-now">הרץ סנכרון עכשיו</button></div>
+      </div>
+      <div class="alert-strip"><span class="as-ico">ℹ</span><span>כל הפעולות הטכניות אידמפוטנטיות וקריאה-בלבד — אין כתיבה למערכת הלקוח ואין שליחת הודעות ממסך זה.</span></div>`;
+    el.querySelector('#sync-now').onclick = () => toast('בדמו אין סנכרון אמיתי — בגרסה המחוברת הכפתור מפעיל סנכרון קריאה-בלבד');
+  }
+
+  function techIntegrations(el) {
+    const rows = [
+      ['וואטסאפ — הודעות נכנסות', 'ניתוח שיחה: תזמונים, דגלים, נושא ראשון', 'מודול קליטה', 'analyze', 'לפני דקה', '0'],
+      ['וואטסאפ — הודעות יוצאות', 'זמני מענה של הצוות', 'מודול קליטה', 'analyze', 'לפני 3 דקות', '0'],
+      ['בקשת שינוי/ביטול תור', 'הערה בכרטיס הלקוח (תור ב-3 הימים הקרובים)', 'מודול תורים', 'preview', 'לפני שעתיים', '0'],
+      ['קוד מספר פנייה מהאתר', 'שיוך מקור האתר לשיחה', 'מודול שיוך מקור', 'preview', 'לפני 4 שעות', '0'],
+      ['ריצה מתוזממת — סטטוסי לידים', 'מעברי סטטוס: חדש→פעיל→מושהה→לא פעיל', 'מודול סטטוסים', 'preview · 24 ש׳ / 7 י׳', 'לפני 25 דקות', '0'],
+      ['פולואפ ליד מושהה', 'שליחת תבנית פעם אחת לליד', 'מודול פולואפ', 'חלון: א׳–ה׳ 19:30–20:00', 'אתמול 19:31', '0'],
+      ['כשל שליחה', 'תיעוד בלוג בלבד (מטושטש)', 'מודול קליטה', 'כל המצבים', 'לפני יומיים', '1'],
+      ['הוצאות פרסום מטא', 'קריאת insights כל שעה', '—', 'active', 'לפני שעה', '0'],
+      ['קליטת לידים מטא (lead ads)', '—', '—', 'טרם חובר', '—', '—'],
+      ['הוצאות פרסום גוגל', '—', '—', 'טרם חובר', '—', '—'],
     ];
-    el.innerHTML = `
-      <div class="att-counters c3">
-        ${counters.map(([label, n, c]) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${c}">
-          <div class="ac-num num">${n}</div><div class="ac-label">${label}<span class="info-i">i</span></div>
-        </div>`).join('')}
+    el.innerHTML = techHead('אינטגרציות', 'מקור ← מה נקלט ← מודול ומצב · ללא פרטים מזהים') + `
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>מקור</th><th>מה נקלט / מבוצע</th><th>מודול</th><th>מצב</th><th>אירוע אחרון</th><th>תקלות (7 ימים)</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td data-h="מקור"><b>${r[0]}</b></td><td data-h="מה נקלט">${r[1]}</td>
+          <td data-h="מודול">${r[2] === '—' ? '—' : `<span class="badge blue">${r[2]}</span>`}</td>
+          <td data-h="מצב"><span class="badge">${r[3]}</span></td><td data-h="אחרון" class="num">${r[4]}</td><td data-h="תקלות" class="num">${r[5]}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+
+  function techLogs(el) {
+    const rows = [
+      ['06:41:12', 'whatsapp-messages.received', 'wh_9f2…a1', 'processed', '120ms'],
+      ['06:41:08', 'whatsapp-messages.received', 'wh_9f2…a1', 'duplicate', '8ms'],
+      ['06:39:50', 'appointment.updated', 'eb_77c…09', 'processed', '210ms'],
+      ['06:38:02', 'whatsapp-messages.delivered', 'wh_81b…c4', 'processed', '95ms'],
+      ['06:30:00', 'ad_spend.synced', 'mt_20e…7f', 'processed', '1.2s'],
+      ['06:12:44', 'lead.created', 'eb_3aa…55', 'processed', '180ms'],
+      ['05:58:19', 'payment.recorded', 'eb_51d…b8', 'processed', '240ms'],
+      ['05:41:33', 'whatsapp-messages.received', 'wh_2c7…e9', 'processed', '110ms'],
+    ];
+    const st = (s) => s === 'processed' ? '<span class="badge green"><span class="dot"></span>processed</span>' : '<span class="badge">duplicate</span>';
+    el.innerHTML = techHead('לוג אירועים אחרונים', 'payload מצונזר לפני כתיבה (allow-list) · ללא פרטים מזהים') + `
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>זמן</th><th>אירוע</th><th>מפתח אידמפוטנטיות</th><th>סטטוס</th><th>זמן עיבוד</th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td data-h="זמן" class="num">${r[0]}</td><td data-h="אירוע"><bdi class="num" style="font-size:12.5px">${r[1]}</bdi></td>
+          <td data-h="מפתח"><bdi class="num" style="font-size:12.5px">${r[2]}</bdi></td><td data-h="סטטוס">${st(r[3])}</td><td data-h="עיבוד" class="num">${r[4]}</td></tr>`).join('')}</tbody>
+      </table></div>
+      <div class="guide" style="margin-top:10px">כפילויות מזוהות לפי מפתח אידמפוטנטיות ולא נכתבות פעמיים. כשל חוזר עובר ל-dead-letter עם התראה.</div>`;
+  }
+
+  function techFreshness(el) {
+    const rows = [
+      ['יומן ותשלומים (Easybizy)', 'לפני 2 דקות', '15 דקות', true],
+      ['וואטסאפ', 'לפני דקה', '15 דקות', true],
+      ['הוצאות פרסום מטא', 'לפני שעה', 'שעה', true],
+      ['התאמה לילית', 'היום 03:00', 'יומי', true],
+      ['MedReviews', 'לפני יומיים', 'יומי', true],
+      ['הוצאות פרסום גוגל', '—', '—', false],
+    ];
+    el.innerHTML = techHead('טריות נתונים', 'אירוע אחרון מול SLA לכל מקור') + `
+      <div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>מקור</th><th>אירוע אחרון</th><th>SLA</th><th>בתוך SLA</th><th></th></tr></thead>
+        <tbody>${rows.map(r => `<tr><td data-h="מקור"><b>${r[0]}</b></td><td data-h="אחרון" class="num">${r[1]}</td>
+          <td data-h="SLA" class="num">${r[2]}</td>
+          <td data-h="בתוך SLA">${r[3] ? '<span class="sdot ok"></span> כן' : '<span class="badge">טרם חובר</span>'}</td>
+          <td>${r[3] ? '<button class="btn secondary" data-sync style="padding:4px 12px;font-size:12.5px">סנכרון ידני</button>' : ''}</td></tr>`).join('')}</tbody>
+      </table></div>`;
+    el.querySelectorAll('[data-sync]').forEach(b => b.onclick = () => toast('בדמו אין סנכרון אמיתי'));
+  }
+
+  function techCampaignMap(el) {
+    const mapped = CD.campaigns.filter(c => !c.unmapped && !c.src);
+    const unmapped = [
+      ['ad_***482', 'מודעת וידאו — קהל רחב', '₪310', '4'],
+      ['ad_***517', 'מודעת תמונה — רימרקטינג', '₪180', '2'],
+      ['ad_***530', 'מודעת רילס — נשים', '₪140', '2'],
+    ];
+    el.innerHTML = techHead('מיפוי קמפיינים', 'שיוך שמות מודעות/קמפיינים לערוץ וטיפול · לידים לא ממופים נספרים ומוצגים') + `
+      <div class="card" style="margin:0 0 12px"><h3>ממופים (${mapped.length})</h3>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>מפתח</th><th>שם</th><th>ערוץ</th><th>טיפול</th><th>פעיל</th></tr></thead>
+          <tbody>${mapped.map(c => `<tr><td data-h="מפתח"><bdi class="num">${c.key}</bdi></td><td data-h="שם"><b>${c.name}</b></td>
+            <td data-h="ערוץ"><span class="badge blue">${chanName(c.channel)}</span></td><td data-h="טיפול">${c.treatment}</td>
+            <td data-h="פעיל">${c.status === 'פעיל' ? '<span class="badge green"><span class="dot"></span>כן</span>' : '<span class="badge">מושהה</span>'}</td></tr>`).join('')}</tbody>
+        </table></div>
       </div>
-      <div class="sys-grid">
-        ${BOARD.systems.map(s => `<div class="sys-tile"><div class="sys-tile-top"><span class="sys-name">${s.name}</span>${badge(s.status)}</div><span class="sys-meta">${s.meta}</span></div>`).join('')}
-      </div>
-      <div class="alert-strip" style="margin-top:14px"><span class="as-ico">⚠</span><span><b>תקלות:</b> ${BOARD.sysErrors}</span></div>`;
+      <div class="card" style="margin:0"><h3>לא ממופים (3) <span class="badge yellow">נספרים כ"לא משויך"</span></h3>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>מזהה מטושטש</th><th>שם כפי שהתקבל</th><th>הוצאה 30 יום</th><th>לידים</th></tr></thead>
+          <tbody>${unmapped.map(r => `<tr><td data-h="מזהה"><bdi class="num">${r[0]}</bdi></td><td data-h="שם">${r[1]}</td>
+            <td data-h="הוצאה" class="num">${r[2]}</td><td data-h="לידים" class="num">${r[3]}</td></tr>`).join('')}</tbody>
+        </table></div>
+        <div class="cell-sub" style="margin-top:8px">בדמו השיוך מושבת; בגרסה המחוברת בחירת טיפול לכל שורה מעדכנת את המיפוי. לידים לא ממופים ממשיכים להיספר תחת "לא משויך לקמפיין" במסך הערוצים.</div>
+      </div>`;
   }
 
   /* ---------------- router ---------------- */
   function route() {
-    const h = location.hash || '#/clients';
-    const [, page, a, b] = h.split('/');
-    if (page === 'board') return viewBoard(a || 'overview');
-    if (!Api.isLoggedIn() && h !== '#/login') return viewLogin();
-    if (h === '#/login') return viewLogin();
+    const raw = location.hash || '#/';
+    const [pathPart, qs] = raw.split('?');
+    state.q = new URLSearchParams(qs || '');
+    const parts = pathPart.split('/');
+    const page = parts[1] || '', a = parts[2], b = parts[3];
+    /* clinic dashboard (public demo, sample data) — per spec 25.11.2026 */
+    if (page === 'board') {
+      const map = { '': '#/', overview: '#/', attention: '#/attention', funnel: '#/channels', campaigns: '#/channels', messages: '#/messages', systems: '#/status' };
+      const t = map[a || ''];
+      if (t) { location.replace(t); return; }
+      return clinic404();
+    }
+    if (!page) return viewClinic('overview');
+    if (page === 'attention') return viewClinic('attention', a);
+    if (page === 'channels') return a === 'campaign' ? viewClinic('campaign', b) : viewClinic('channels');
+    if (page === 'messages') return viewClinic('messages');
+    if (page === 'status') return viewClinic('status');
+    if (page === 'tech') return viewTech(a || 'home');
+    /* console (requires login) */
+    if (!Api.isLoggedIn() && pathPart !== '#/login') return viewLogin();
+    if (pathPart === '#/login') return viewLogin();
     if (page === 'clients') return viewClients(a === 'new');
     if (page === 'activity') return viewActivityPage();
     if (page === 'client' && a) {
-      const parts = h.split('/');
       if (parts[3] === 'builder') return viewBuilder(a, parts[4] || null);
       if (parts[3] === 'automation') return viewAutomation(a, parts[4] || null);
       return viewClient(a, parts[3] || 'dash');
