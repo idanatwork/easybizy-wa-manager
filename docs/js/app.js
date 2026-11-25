@@ -1111,6 +1111,13 @@
     ],
     sysErrors: 'שגיאת שליחה אחת ב-7 הימים האחרונים (whatsapp-messages.failed, אתמול)',
   };
+  BOARD.channelFunnels = [
+    { name: 'מודעות מטא בוואטסאפ', leads: 88, booked: 25, arrived: 18, paid: 12, spend: 11300, delta: '+9% לידים', up: true },
+    { name: 'אורגני / וואטסאפ ישיר', leads: 52, booked: 14, arrived: 10, paid: 7, spend: 0, delta: '+6% לידים', up: true },
+    { name: 'אתר', leads: 14, booked: 4, arrived: 3, paid: 2, spend: 1000, delta: 'ללא שינוי', up: true },
+    { name: 'שיחה שלא נענתה', leads: 9, booked: 2, arrived: 2, paid: 1, spend: 0, delta: '+2 לידים', up: true },
+    { name: 'MedReviews', leads: 5, booked: 1, arrived: 1, paid: 1, spend: 200, delta: '−1 ליד', up: false },
+  ];
   const BOARD_PERIODS = [['day', 'היום'], ['week', 'השבוע'], ['month', 'החודש'], ['prevmonth', 'חודש קודם'], ['q90', '90 ימים'], ['custom', 'טווח תאריכים']];
   const chan = (meta, organic, site, call, medrev) => [
     { name: 'מודעות מטא בוואטסאפ', n: meta, conv: '21%', cost: ils(118) },
@@ -1272,63 +1279,97 @@
 
   function boardCampaigns(el) {
     const sum = (f) => BOARD.campaigns.reduce((a, c) => a + c[f], 0);
-    const urlHb = new URLSearchParams(location.search).get('hb');
-    const curHb = urlHb || state.hbarLayout || localStorage.getItem('wa-hbar-default') || '1';
-    const hbSetDef = localStorage.getItem('wa-hbar-setdef') === '1';
     const totals = { spend: sum('spend'), leads: sum('leads'), booked: sum('booked'), paid: sum('paid'), revenue: sum('revenue') };
     const counter = (label, value, color) => `<div class="att-counter has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
       <div class="ac-num num">${value}</div><div class="ac-label">${label}<span class="info-i">i</span></div></div>`;
     const tile = (label, value, color) => `<div class="msg-tile has-tip" data-tip="${TIP[label] || ''}" tabindex="0" style="--ac:${color}">
       <div class="msg-num num" style="font-size:20px">${value}</div><div class="msg-label">${label}<span class="info-i">i</span></div></div>`;
+    const CD = [['+12% לידים', true], ['+4% לידים', true], ['+18% לידים', true], ['−5% לידים', false], ['+2 לידים', true], ['+7% לידים', true]];
+    const sel = Math.min(state.campSel == null ? 0 : state.campSel, BOARD.campaigns.length - 1);
+    const c = BOARD.campaigns[sel];
+    const flKey = 'wa-funnel-default';
+    const urlFl = new URLSearchParams(location.search).get('fl');
+    const curFl = urlFl || state.campFunnelLayout || localStorage.getItem(flKey) || '1';
+    const flSetDef = localStorage.getItem('wa-funnel-setdef') === '1';
+    const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '—';
+    const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : (c.paid ? 'ללא עלות' : '—');
+    const roas = c.spend ? (c.revenue / c.spend).toFixed(1) : '—';
+    const trend = Array.from({ length: 14 }, (_, i) => Math.max(0, Math.round(c.leads / 14 * (0.55 + ((i * 7 + sel * 3 + 2) % 5) * 0.22))));
+    const stages = [['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]];
+    const rowHtml = (cc, i) => {
+      const rcpl = cc.spend && cc.leads ? ils(Math.round(cc.spend / cc.leads)) : '—';
+      const rroas = cc.spend ? '×' + (cc.revenue / cc.spend).toFixed(1) : '—';
+      return `<tr data-rowcamp="${i}" style="cursor:pointer${i === sel ? ';background:var(--gray-soft)' : ''}">
+        <td data-h="קמפיין"><b>${cc.name}</b></td>
+        <td data-h="ערוץ"><span class="badge blue">${cc.channel}</span></td>
+        <td data-h="הוצאה" class="num">${cc.spend ? ils(cc.spend) : '—'}</td>
+        <td data-h="לידים" class="num">${cc.leads}</td>
+        <td data-h="עלות לליד" class="num">${rcpl}</td>
+        <td data-h="קבעו תור" class="num">${cc.booked}</td>
+        <td data-h="הגיעו" class="num">${cc.arrived}</td>
+        <td data-h="שילמו" class="num">${cc.paid}</td>
+        <td data-h="הכנסה" class="num">${ils(cc.revenue)}</td>
+        <td data-h="החזר" class="num">${rroas}</td>
+      </tr>`;
+    };
     el.innerHTML = `
       <div class="board-tabs" style="margin-top:0">
-        <span class="board-tab active">\u05D4\u05D7\u05D5\u05D3\u05E9</span><span class="board-tab" style="opacity:.55">7 \u05D9\u05DE\u05D9\u05DD</span><span class="board-tab" style="opacity:.55">90 \u05D9\u05DE\u05D9\u05DD</span>
-        <span class="board-tab" style="opacity:.55">\u05E2\u05E8\u05D5\u05E5: \u05D4\u05DB\u05DC</span><span class="board-tab" style="opacity:.55">\u05D8\u05D9\u05E4\u05D5\u05DC: \u05D4\u05DB\u05DC</span>
+        <span class="board-tab active">החודש</span><span class="board-tab" style="opacity:.55">7 ימים</span><span class="board-tab" style="opacity:.55">90 ימים</span>
+        <span class="board-tab" style="opacity:.55">ערוץ: הכל</span><span class="board-tab" style="opacity:.55">טיפול: הכל</span>
       </div>
       <div class="att-counters c6">
-        ${counter('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(totals.spend), 'var(--ac-red)')}
-        ${counter('\u05DC\u05D9\u05D3\u05D9\u05DD', totals.leads, 'var(--ac-blue)')}
-        ${counter('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', totals.booked, 'var(--ac-orange)')}
-        ${counter('\u05E9\u05D9\u05DC\u05DE\u05D5', totals.paid, 'var(--ac-green)')}
-        ${counter('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(totals.revenue), 'var(--ac-purple)')}
-        ${counter('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', '\u00D7' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
+        ${counter('הוצאה', ils(totals.spend), 'var(--ac-red)')}
+        ${counter('לידים', totals.leads, 'var(--ac-blue)')}
+        ${counter('קבעו תור', totals.booked, 'var(--ac-orange)')}
+        ${counter('שילמו', totals.paid, 'var(--ac-green)')}
+        ${counter('הכנסה', ils(totals.revenue), 'var(--ac-purple)')}
+        ${counter('החזר על ההוצאה', '×' + (totals.revenue / totals.spend).toFixed(1), 'var(--green)')}
       </div>
-      <div class="card" style="margin:0 0 12px"><h3>התקדמות לידים לפי קמפיין</h3>
-        <div class="board-tabs hb-tabs">${HB_LAYOUTS.map(([k, l]) => `<button class="board-tab ${curHb === k ? 'active' : ''}" data-hb="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
-          <label class="fn-def"><input type="checkbox" id="hb-def" ${hbSetDef ? 'checked' : ''}> קבע כברירת מחדל</label></div>
-        <div id="hb-body">${hbRender(curHb)}</div>
+      <div class="card" style="margin:0 0 12px"><h3>השוואת קמפיינים</h3>
+        <div class="tbl-wrap"><table class="tbl tbl-rows">
+          <thead><tr><th>קמפיין</th><th>ערוץ</th><th>הוצאה</th><th>לידים</th><th>עלות לליד</th><th>קבעו תור</th><th>הגיעו</th><th>שילמו</th><th>הכנסה</th><th>החזר</th></tr></thead>
+          <tbody>${BOARD.campaigns.map(rowHtml).join('')}</tbody>
+        </table></div>
+        <div class="cell-sub" style="margin-top:8px">לחיצה על שורה פותחת זום מלא על הקמפיין למטה.</div>
       </div>
-      ${BOARD.campaigns.map(c => {
-        const cpl = c.spend && c.leads ? ils(Math.round(c.spend / c.leads)) : '\u2014';
-        const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : '\u2014';
-        const roas = c.spend ? (c.revenue / c.spend).toFixed(1) : '\u2014';
-        return `<details class="att-list card" style="--ac:var(--green);margin:0 0 12px">
-          <summary>
-            <span class="att-title">${c.name}</span><span class="badge blue">${c.channel}</span>
-            <span class="camp-head num"><b style="color:var(--ac-blue)">${c.leads}</b> \u05DC\u05D9\u05D3\u05D9\u05DD \u00B7 <b style="color:var(--ac-purple)">${ils(c.revenue)}</b> \u05D4\u05DB\u05E0\u05E1\u05D4${roas === '\u2014' ? '' : ` \u00B7 <b style="color:var(--green)">\u00D7${roas}</b> \u05D4\u05D7\u05D6\u05E8`}</span>
-            <span class="att-caret">\u25C2</span>
-          </summary>
-          <div class="msg-stats c4" style="margin:2px 16px 6px">
-            ${tile('\u05D4\u05D5\u05E6\u05D0\u05D4', ils(c.spend), 'var(--ac-red)')}
-            ${tile('\u05DC\u05D9\u05D3\u05D9\u05DD', c.leads, 'var(--ac-blue)')}
-            ${tile('\u05E2\u05DC\u05D5\u05EA \u05DC\u05DC\u05D9\u05D3', cpl, 'var(--ac-cyan)')}
-            ${tile('\u05E7\u05D1\u05E2\u05D5 \u05EA\u05D5\u05E8', c.booked, 'var(--ac-orange)')}
-            ${tile('\u05D4\u05D2\u05D9\u05E2\u05D5', c.arrived, 'var(--ac-olive)')}
-            ${tile('\u05E9\u05D9\u05DC\u05DE\u05D5', c.paid, 'var(--ac-green)')}
-            ${tile('\u05D4\u05DB\u05E0\u05E1\u05D4', ils(c.revenue), 'var(--ac-purple)')}
-            ${tile('\u05D4\u05D7\u05D6\u05E8 \u05E2\u05DC \u05D4\u05D4\u05D5\u05E6\u05D0\u05D4', roas === '\u2014' ? '\u2014' : '\u00D7' + roas, 'var(--green)')}
+      <div class="card" style="margin:0"><h3>זום על קמפיין</h3>
+        <div class="board-tabs" style="flex-wrap:wrap;margin-bottom:12px">${BOARD.campaigns.map((cc, i) => `<button class="board-tab ${i === sel ? 'active' : ''}" data-csel="${i}">${cc.name}</button>`).join('')}</div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px"><h4 style="margin:0">${c.name}</h4><span class="badge blue">${c.channel}</span><span class="cell-sub" style="color:${CD[sel][1] ? 'var(--mint-ink)' : 'var(--red)'}">${CD[sel][0]} מול חודש קודם</span></div>
+        <div class="msg-stats c4" style="margin:2px 0 8px">
+          ${tile('הוצאה', ils(c.spend), 'var(--ac-red)')}
+          ${tile('לידים', c.leads, 'var(--ac-blue)')}
+          ${tile('עלות לליד', cpl, 'var(--ac-cyan)')}
+          ${tile('קבעו תור', c.booked, 'var(--ac-orange)')}
+          ${tile('הגיעו', c.arrived, 'var(--ac-olive)')}
+          ${tile('שילמו', c.paid, 'var(--ac-green)')}
+          ${tile('הכנסה', ils(c.revenue), 'var(--ac-purple)')}
+          ${tile('החזר על ההוצאה', roas === '—' ? '—' : '×' + roas, 'var(--green)')}
+        </div>
+        <div class="cell-sub" style="margin:0 0 12px">עלות למטופל משלם: <b>${cpp}</b></div>
+        <div class="dash-2col">
+          <div>
+            <h4 style="margin:0 0 8px">המשפך של הקמפיין</h4>
+            <div class="board-tabs hb-tabs" style="flex-wrap:wrap">${FN_LAYOUTS.map(([k, l]) => `<button class="board-tab ${curFl === k ? 'active' : ''}" data-fl2="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
+              <label class="fn-def"><input type="checkbox" id="fl2-def" ${flSetDef ? 'checked' : ''}> קבע כברירת מחדל</label></div>
+            ${fnRender(curFl, c, 'camp')}
+            ${fnChips(stages)}
           </div>
-          <div class="cell-sub" style="margin:0 16px 12px">\u05E2\u05DC\u05D5\u05EA \u05DC\u05DE\u05D8\u05D5\u05E4\u05DC \u05DE\u05E9\u05DC\u05DD: ${cpp}</div>
-        </details>`;
-      }).join('')}`;
-    const hbBox = el.querySelector('#hb-def');
-    hbBox.onchange = () => {
-      localStorage.setItem('wa-hbar-setdef', hbBox.checked ? '1' : '0');
-      if (hbBox.checked) localStorage.setItem('wa-hbar-default', state.hbarLayout || curHb);
+          <div>
+            <h4 style="margin:0 0 8px">לידים — 14 ימים אחרונים</h4>
+            ${c2chart(trend, { labels: trend.map((_, i) => (i % 2 === 0 ? String(i + 1) : '')), tip: (i) => `${trend[i]} לידים` })}
+          </div>
+        </div>
+      </div>`;
+    el.querySelectorAll('[data-csel]').forEach(b => b.onclick = () => { state.campSel = +b.dataset.csel; boardCampaigns(el); });
+    el.querySelectorAll('[data-rowcamp]').forEach(r => r.onclick = () => { state.campSel = +r.dataset.rowcamp; boardCampaigns(el); });
+    const flBox = el.querySelector('#fl2-def');
+    flBox.onchange = () => {
+      localStorage.setItem('wa-funnel-setdef', flBox.checked ? '1' : '0');
+      if (flBox.checked) localStorage.setItem(flKey, state.campFunnelLayout || curFl);
     };
-    el.querySelectorAll('[data-hb]').forEach(b => b.onclick = () => {
-      state.hbarLayout = b.dataset.hb;
-      if (hbBox.checked) localStorage.setItem('wa-hbar-default', b.dataset.hb);
+    el.querySelectorAll('[data-fl2]').forEach(b => b.onclick = () => {
+      state.campFunnelLayout = b.dataset.fl2;
+      if (flBox.checked) localStorage.setItem(flKey, b.dataset.fl2);
       boardCampaigns(el);
     });
   }
@@ -1354,22 +1395,24 @@
     const conv = (i) => Math.round(stages[i][1] / stages[i - 1][1] * 100) + '%';
     const lost = (i) => stages[i - 1][1] - stages[i][1];
     const grads = (dir) => FCOL.map((g, i) => `<linearGradient id="${uid}${dir}${i}" x1="0" y1="0" x2="${dir === 'h' ? 1 : 0}" y2="${dir === 'h' ? 0 : 1}"><stop offset="0" style="stop-color:${g[0]}"/><stop offset="1" style="stop-color:${g[1]}"/></linearGradient>`).join('');
+    const mob = window.innerWidth < 640;
 
     if (layout === '1') {
-      const W = 900, H = 340, cx = 290, top = 480, bot = 150, gap = 8, sh = (H - gap * (N - 1)) / N, step = (top - bot) / N;
+      const W = mob ? 480 : 900, H = 340, cx = mob ? 165 : 290, top = mob ? 270 : 480, bot = mob ? 100 : 150, gap = 8, sh = (H - gap * (N - 1)) / N, step = (top - bot) / N;
+      const px = mob ? 320 : 610, pw = mob ? 145 : 180;
       let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('v')}</defs>`;
       stages.forEach(([nm, v], i) => {
         const y = i * (sh + gap), wt = top - i * step, wb = top - (i + 1) * step;
         o += `<polygon fill="url(#${uid}v${i})" points="${cx - wt / 2},${y} ${cx + wt / 2},${y} ${cx + wb / 2},${y + sh} ${cx - wb / 2},${y + sh}"/>
         <polygon fill="rgba(255,255,255,.12)" points="${cx - wt / 2},${y} ${cx + wt / 2},${y} ${cx + (wt + wb) / 4},${y + sh / 2} ${cx - (wt + wb) / 4},${y + sh / 2}"/>
-        <text x="${cx}" y="${y + sh / 2 - 2}" text-anchor="middle" fill="#fff" fill-opacity=".9" font-size="13" font-weight="700">${nm}</text>
-        <text x="${cx}" y="${y + sh / 2 + 24}" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">${v}</text>`;
+        <text x="${cx}" y="${y + sh / 2 - 2}" text-anchor="middle" fill="#fff" fill-opacity=".9" font-size="${mob ? 13 : 15}" font-weight="700">${nm}</text>
+        <text x="${cx}" y="${y + sh / 2 + 24}" text-anchor="middle" fill="#fff" font-size="${mob ? 18 : 22}" font-weight="700">${v}</text>`;
         if (i) {
           const ex = cx + wt / 2 + 10, py = y - gap / 2;
-          o += `<line x1="${ex}" y1="${py}" x2="610" y2="${py}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/><circle cx="${ex}" cy="${py}" r="3" class="ft"/>
-          <rect x="610" y="${py - 17}" width="180" height="34" rx="17" class="fchip"/>
-          <text x="628" y="${py + 6}" class="ftg" font-size="17" font-weight="800">${conv(i)}</text>
-          <text x="692" y="${py + 5}" class="ftr" font-size="13">−${lost(i)} ירדו</text>`;
+          o += `<line x1="${ex}" y1="${py}" x2="${px - 6}" y2="${py}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/><circle cx="${ex}" cy="${py}" r="3" class="ft"/>
+          <rect x="${px}" y="${py - 17}" width="${pw}" height="34" rx="17" class="fchip"/>
+          <text x="${px + (mob ? 14 : 18)}" y="${py + 6}" class="ftg" font-size="${mob ? 15 : 17}" font-weight="800">${conv(i)}</text>
+          <text x="${px + (mob ? 60 : 78)}" y="${py + 5}" class="ftr" font-size="${mob ? 12 : 14}">−${lost(i)} ירדו</text>`;
         }
       });
       return o + '</svg>';
@@ -1389,7 +1432,8 @@
       }).join('') + `</div>`;
     }
     if (layout === '4') {
-      const W = 900, H = 420, cx = 250, bottom = 405, R = 190, dr = 42;
+      const W = mob ? 480 : 900, H = mob ? 290 : 420, cx = mob ? 130 : 250, bottom = mob ? 278 : 405, R = mob ? 120 : 190, dr = mob ? 30 : 42;
+      const lx = mob ? 280 : 560, tx = mob ? 292 : 575, cvx = mob ? 428 : 760;
       const rs = stages.map((_, i) => R - i * dr);
       let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('v')}</defs>`;
       stages.forEach((_, i) => { o += `<circle cx="${cx}" cy="${bottom - rs[i]}" r="${rs[i]}" fill="url(#${uid}v${i})" stroke="var(--card)" stroke-width="3"/>`; });
@@ -1397,10 +1441,10 @@
         const t = bottom - 2 * rs[i], nt = i < N - 1 ? bottom - 2 * rs[i + 1] : bottom - rs[i] - 14;
         const y = i < N - 1 ? (t + nt) / 2 : bottom - rs[i];
         o += `<circle cx="${cx}" cy="${y}" r="3.5" fill="#fff"/>
-        <line x1="${cx}" y1="${y}" x2="560" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
-        <text x="575" y="${y - 2}" font-size="12" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
-        <text x="575" y="${y + 20}" class="ft" font-size="19" font-weight="700">${v}</text>
-        <text x="760" y="${y + 21}" class="ftg" font-size="17" font-weight="800">${i ? conv(i) : ''}</text>`;
+        <line x1="${cx}" y1="${y}" x2="${lx}" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
+        <text x="${tx}" y="${y - 2}" font-size="${mob ? 12.5 : 14}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
+        <text x="${tx}" y="${y + (mob ? 17 : 20)}" class="ft" font-size="${mob ? 15 : 19}" font-weight="700">${v}</text>
+        <text x="${cvx}" y="${y + (mob ? 18 : 21)}" class="ftg" font-size="${mob ? 14 : 17}" font-weight="800">${i ? conv(i) : ''}</text>`;
       });
       return o + '</svg>';
     }
@@ -1414,21 +1458,21 @@
       }).join('') + `</div>`;
     }
     // layout 6: curved flow (mirrored: starts at right for RTL)
-    const W = 900, H = 380, cy = 175, nw = 16;
-    const xs = stages.map((_, i) => 870 - i * 280);
-    const hs = stages.map(([, v]) => Math.max(20, Math.round(240 * Math.pow(v / stages[0][1], .36))));
+    const W = mob ? 480 : 900, H = mob ? 300 : 380, cy = mob ? 140 : 175, nw = mob ? 12 : 16;
+    const xs = stages.map((_, i) => (mob ? 452 : 870) - i * (mob ? 145 : 280));
+    const hs = stages.map(([, v]) => Math.max(mob ? 16 : 20, Math.round((mob ? 185 : 240) * Math.pow(v / stages[0][1], .36))));
     let o = `<svg viewBox="0 0 ${W} ${H}"><defs>${grads('h')}</defs>`;
     for (let i = 0; i < N - 1; i++) {
       const x1 = xs[i], x2 = xs[i + 1] + nw, m = (x1 + x2) / 2, a = hs[i] / 2, b = hs[i + 1] / 2;
       o += `<path fill="url(#${uid}h${i})" fill-opacity=".55" d="M${x1},${cy - a} C${m},${cy - a} ${m},${cy - b} ${x2},${cy - b} L${x2},${cy + b} C${m},${cy + b} ${m},${cy + a} ${x1},${cy + a} Z"/>
-      <text x="${m}" y="${H - 32}" text-anchor="middle" class="ftg" font-size="19" font-weight="800">${conv(i + 1)}</text>
-      <text x="${m}" y="${H - 10}" text-anchor="middle" class="ftr" font-size="12.5">−${lost(i + 1)} ירדו</text>`;
+      <text x="${m}" y="${H - (mob ? 28 : 32)}" text-anchor="middle" class="ftg" font-size="${mob ? 14 : 19}" font-weight="800">${conv(i + 1)}</text>
+      <text x="${m}" y="${H - 9}" text-anchor="middle" class="ftr" font-size="${mob ? 11.5 : 14}">−${lost(i + 1)} ירדו</text>`;
     }
     stages.forEach(([nm, v], i) => {
       const x = xs[i], tp = cy - hs[i] / 2;
       o += `<rect x="${x}" y="${tp}" width="${nw}" height="${hs[i]}" rx="6" style="fill:${FCOL[i][0]}"/>
-      <text x="${x + nw / 2}" y="${tp - 32}" text-anchor="middle" font-size="12" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
-      <text x="${x + nw / 2}" y="${tp - 10}" text-anchor="middle" class="ft" font-size="18" font-weight="700">${v}</text>`;
+      <text x="${x + nw / 2}" y="${tp - (mob ? 28 : 34)}" text-anchor="middle" font-size="${mob ? 12 : 14}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
+      <text x="${x + nw / 2}" y="${tp - 9}" text-anchor="middle" class="ft" font-size="${mob ? 15 : 18}" font-weight="700">${v}</text>`;
     });
     return o + '</svg>';
   }
@@ -1440,13 +1484,47 @@
     const savedDef = localStorage.getItem('wa-funnel-default') || '1';
     const cur = urlFl || state.funnelLayout || savedDef;
     const setDef = localStorage.getItem('wa-funnel-setdef') === '1';
+    const sum = (f) => BOARD.channelFunnels.reduce((a, c) => a + c[f], 0);
+    const tot = { leads: sum('leads'), booked: sum('booked'), arrived: sum('arrived'), paid: sum('paid') };
+    const totStages = [['לידים', tot.leads], ['קבעו תור', tot.booked], ['הגיעו', tot.arrived], ['שילמו', tot.paid]];
+    const rowHtml = (ch) => {
+      const e2e = Math.round(ch.paid / ch.leads * 100) + '%';
+      const cpp = ch.spend && ch.paid ? ils(Math.round(ch.spend / ch.paid)) : 'ללא עלות';
+      return `<tr>
+        <td data-h="ערוץ"><b>${ch.name}</b></td>
+        <td data-h="לידים" class="num">${ch.leads}</td>
+        <td data-h="קבעו תור" class="num">${ch.booked}</td>
+        <td data-h="הגיעו" class="num">${ch.arrived}</td>
+        <td data-h="שילמו" class="num">${ch.paid}</td>
+        <td data-h="המרה מקצה לקצה"><b class="num">${e2e}</b></td>
+        <td data-h="עלות למטופל משלם" class="num">${cpp}</td>
+        <td data-h="מול חודש קודם"><span style="color:${ch.up ? 'var(--mint-ink)' : 'var(--red)'}">${ch.delta}</span></td>
+      </tr>`;
+    };
     el.innerHTML = `
       <div class="board-tabs" style="margin-top:0;flex-wrap:wrap;align-items:center">
         ${FN_LAYOUTS.map(([k, l]) => `<button class="board-tab ${cur === k ? 'active' : ''}" data-fl="${k}"><span class="num">${k}</span> · ${l}</button>`).join('')}
         <label class="fn-def"><input type="checkbox" id="fn-def" ${setDef ? 'checked' : ''}> קבע כברירת מחדל</label>
       </div>
-      <div class="dash-2col">${BOARD.campaigns.slice(0, 2).map((c, ci) => `<div class="card" style="margin:0"><h3 style="font-size:15px;text-align:center">${c.name}</h3>${fnRender(cur, c, ci)}${fnChips([['לידים', c.leads], ['קבעו תור', c.booked], ['הגיעו', c.arrived], ['שילמו', c.paid]])}</div>`).join('')}</div>
-      <div class="cell-sub" style="margin-top:10px">בדמו מוצגים שני קמפיינים; במערכת המלאה ניתן לבחור כל קמפיין, ערוץ ותקופה.</div>`;
+      <div class="card" style="margin:0 0 12px"><h3>המשפך הכללי — כל הערוצים</h3>
+        ${fnRender(cur, tot, 'agg')}
+        ${fnChips(totStages)}
+      </div>
+      <div class="card" style="margin:0 0 12px"><h3>משפך לפי ערוץ</h3>
+        <div class="tbl-wrap"><table class="tbl tbl-rows">
+          <thead><tr><th>ערוץ</th><th>לידים</th><th>קבעו תור</th><th>הגיעו</th><th>שילמו</th><th>המרה מקצה לקצה</th><th>עלות למטופל משלם</th><th>מול חודש קודם</th></tr></thead>
+          <tbody>${BOARD.channelFunnels.map(rowHtml).join('')}</tbody>
+        </table></div>
+        <div class="cell-sub" style="margin-top:8px">איזה ערוץ מביא ואיפה הוא נוזל. עלות למטופל משלם = הוצאת הערוץ חלקי מטופלים ששילמו — המספר שאיתו מעבירים תקציב בין ערוצים.</div>
+      </div>
+      <div class="card" style="margin:0"><h3>זמן מענה ראשון מול אחוז סגירה</h3>
+        <div class="att-counters c3">
+          <div class="att-counter" style="--ac:var(--ac-green)"><div class="ac-num num">34%</div><div class="ac-label">מענה תוך 5 דקות</div></div>
+          <div class="att-counter" style="--ac:var(--ac-orange)"><div class="ac-num num">19%</div><div class="ac-label">מענה תוך שעה</div></div>
+          <div class="att-counter" style="--ac:var(--ac-red)"><div class="ac-num num">7%</div><div class="ac-label">מענה מעל שעה</div></div>
+        </div>
+        <div class="cell-sub" style="margin-top:8px">אחוז הלידים שקבעו תור, לפי זמן המענה הראשון לפנייה (מניתוח ה-webhook של השיחות). מענה מהיר מכפיל את הסיכוי לתור פי כמה — הסיבה שהאוטומציה של המענה הראשון קריטית.</div>
+      </div>`;
     const defBox = el.querySelector('#fn-def');
     defBox.onchange = () => {
       localStorage.setItem('wa-funnel-setdef', defBox.checked ? '1' : '0');
