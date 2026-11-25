@@ -1178,7 +1178,7 @@
   function viewBoard(section = 'overview') {
     clearInterval(state.convoTimer);
     shell('board', `
-      <div class="page-head"><h1>דשבורד ניהול</h1><span class="badge yellow">נתוני דמו</span></div>
+      <div class="page-head"><h1>דשבורד ניהול</h1><span class="badge yellow">נתוני דמו</span><span class="badge" style="background:var(--gray-soft);color:var(--muted);font-weight:600">גרסה ${document.querySelector('meta[name="app-ver"]')?.content || ''}</span></div>
       <div class="board-tabs">${BOARD_TABS.map(([k, l]) => `<a class="board-tab ${section === k ? 'active' : ''}" href="#/board/${k}">${l}</a>`).join('')}</div>
       <div class="cell-sub" style="margin:2px 0 14px">${BOARD.updated} \u00B7 הדגמה בלבד \u2014 נתונים לצורך הצגה בלבד, אין חיבור לנתוני הקליניקה</div>
       <div id="board-body"></div>`, null, 'clinic');
