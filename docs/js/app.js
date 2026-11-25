@@ -1503,7 +1503,7 @@
   const b64e = (u) => btoa(String.fromCharCode(...new Uint8Array(u)));
   async function techFetchBlob() {
     if (!techBlob) {
-      const r = await fetch('js/tech.enc.json?v=' + (document.querySelector('meta[name="app-ver"]')?.content || ''), { cache: 'no-store' });
+      const r = await fetch('js/tech.enc.json?v=' + encodeURIComponent(VER() || String(Date.now())), { cache: 'no-store' });
       if (!r.ok) throw new Error('blob_unavailable');
       techBlob = await r.json();
     }
@@ -1515,6 +1515,17 @@
     const src = new TextDecoder().decode(pt);
     techMod = new Function('ctx', src)({ CD, chanName, esc, shell, state, toast });
     return techMod;
+  }
+  /* Same normalization as tech-src/encrypt.mjs: trim + NFC. Try normalized first, then the exact typed value. */
+  async function techUnlock(raw) {
+    const norm = String(raw || '').trim().normalize('NFC');
+    const tries = norm === raw ? [norm] : [norm, raw];
+    for (const cand of tries) {
+      if (!cand) continue;
+      const key = await techKeyFromPassword(cand);
+      try { await techOpen(key); return key; } catch (e) { if (e && e.message === 'blob_unavailable') throw e; }
+    }
+    throw new Error('bad_password');
   }
   async function techKeyFromPassword(pw) {
     const blob = await techFetchBlob();
@@ -1543,19 +1554,21 @@
         <h1>אזור טכני</h1>
         <p>האזור הזה מיועד לעידן בלבד. הזינו סיסמה כדי לפתוח אותו בלשונית הזו.</p>
         <form id="tech-form" autocomplete="off">
-          <label class="field"><span>סיסמה</span><input class="input" type="password" id="tech-pw" autocomplete="current-password" required></label>
+          <label class="field"><span>סיסמה</span><span style="position:relative;display:block"><input class="input" type="password" id="tech-pw" name="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" dir="ltr" inputmode="text" required style="padding-inline-end:44px;width:100%"><button type="button" id="tech-eye" aria-label="הצג סיסמה" title="הצג סיסמה" style="position:absolute;top:50%;right:8px;transform:translateY(-50%);background:none;border:0;cursor:pointer;font-size:18px;line-height:1;padding:4px;color:var(--muted)">👁</button></span></label>
           <div id="tech-err" class="cell-sub" style="color:var(--red,#c0392b);min-height:18px;margin:-6px 0 10px">${msg ? esc(msg) : ''}</div>
           <button class="btn" type="submit" id="tech-go" style="width:100%;justify-content:center">כניסה</button>
         </form>
       </div></div>`, null, 'tech', page);
     const form = document.getElementById('tech-form'), pw = document.getElementById('tech-pw'), err = document.getElementById('tech-err'), go = document.getElementById('tech-go');
     pw.focus();
+    const eye = document.getElementById('tech-eye');
+    eye.onclick = () => { const show = pw.type === 'password'; pw.type = show ? 'text' : 'password'; eye.textContent = show ? '🙈' : '👁'; eye.setAttribute('aria-label', show ? 'הסתר סיסמה' : 'הצג סיסמה'); pw.focus(); };
     form.onsubmit = async (e) => {
       e.preventDefault();
       go.disabled = true; err.textContent = 'בודק…';
       try {
-        const key = await techKeyFromPassword(pw.value);
-        await techOpen(key);
+        try { sessionStorage.removeItem(TECH_KEY); } catch {}
+        const key = await techUnlock(pw.value);
         try { sessionStorage.setItem(TECH_KEY, b64e(await crypto.subtle.exportKey('raw', key))); } catch {}
         techShowModule(page);
       } catch (ex) {
@@ -1573,7 +1586,7 @@
         const key = await crypto.subtle.importKey('raw', b64d(cached), { name: 'AES-GCM' }, true, ['decrypt']);
         await techOpen(key);
         return techShowModule(page);
-      } catch { try { sessionStorage.removeItem(TECH_KEY); } catch {} }
+      } catch { try { sessionStorage.removeItem(TECH_KEY); } catch {} techBlob = null; techMod = null; }
     }
     techPrompt(page);
   }
