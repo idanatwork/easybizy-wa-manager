@@ -1442,9 +1442,9 @@
         const y = i < N - 1 ? (t + nt) / 2 : bottom - rs[i];
         o += `<circle cx="${cx}" cy="${y}" r="3.5" fill="#fff"/>
         <line x1="${cx}" y1="${y}" x2="${lx}" y2="${y}" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 5"/>
-        <text x="${tx}" y="${y - 2}" font-size="${mob ? 12.5 : 14}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
-        <text x="${tx}" y="${y + (mob ? 17 : 20)}" class="ft" font-size="${mob ? 15 : 19}" font-weight="700">${v}</text>
-        <text x="${cvx}" y="${y + (mob ? 18 : 21)}" class="ftg" font-size="${mob ? 14 : 17}" font-weight="800">${i ? conv(i) : ''}</text>`;
+        <text x="${tx}" y="${y - 2}" font-size="${mob ? 13 : 16}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
+        <text x="${tx}" y="${y + (mob ? 17 : 20)}" class="ft" font-size="${mob ? 16 : 22}" font-weight="700">${v}</text>
+        <text x="${cvx}" y="${y + (mob ? 18 : 21)}" class="ftg" font-size="${mob ? 14.5 : 20}" font-weight="800">${i ? conv(i) : ''}</text>`;
       });
       return o + '</svg>';
     }
@@ -1465,14 +1465,14 @@
     for (let i = 0; i < N - 1; i++) {
       const x1 = xs[i], x2 = xs[i + 1] + nw, m = (x1 + x2) / 2, a = hs[i] / 2, b = hs[i + 1] / 2;
       o += `<path fill="url(#${uid}h${i})" fill-opacity=".55" d="M${x1},${cy - a} C${m},${cy - a} ${m},${cy - b} ${x2},${cy - b} L${x2},${cy + b} C${m},${cy + b} ${m},${cy + a} ${x1},${cy + a} Z"/>
-      <text x="${m}" y="${H - (mob ? 28 : 32)}" text-anchor="middle" class="ftg" font-size="${mob ? 14 : 19}" font-weight="800">${conv(i + 1)}</text>
-      <text x="${m}" y="${H - 9}" text-anchor="middle" class="ftr" font-size="${mob ? 11.5 : 14}">−${lost(i + 1)} ירדו</text>`;
+      <text x="${m}" y="${H - (mob ? 28 : 32)}" text-anchor="middle" class="ftg" font-size="${mob ? 15 : 22}" font-weight="800">${conv(i + 1)}</text>
+      <text x="${m}" y="${H - 9}" text-anchor="middle" class="ftr" font-size="${mob ? 12 : 16}">−${lost(i + 1)} ירדו</text>`;
     }
     stages.forEach(([nm, v], i) => {
       const x = xs[i], tp = cy - hs[i] / 2;
       o += `<rect x="${x}" y="${tp}" width="${nw}" height="${hs[i]}" rx="6" style="fill:${FCOL[i][0]}"/>
-      <text x="${x + nw / 2}" y="${tp - (mob ? 28 : 34)}" text-anchor="middle" font-size="${mob ? 12 : 14}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
-      <text x="${x + nw / 2}" y="${tp - 9}" text-anchor="middle" class="ft" font-size="${mob ? 15 : 18}" font-weight="700">${v}</text>`;
+      <text x="${x + nw / 2}" y="${tp - (mob ? 28 : 34)}" text-anchor="middle" font-size="${mob ? 12.5 : 16}" font-weight="700" style="fill:${FCOL[i][0]}">${nm}</text>
+      <text x="${x + nw / 2}" y="${tp - 9}" text-anchor="middle" class="ft" font-size="${mob ? 16 : 21}" font-weight="700">${v}</text>`;
     });
     return o + '</svg>';
   }
