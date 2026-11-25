@@ -1683,7 +1683,8 @@
 
   function viewTech(page) {
     clearInterval(state.convoTimer);
-    shell('tech', `<div class="tech-banner">⚙ אזור טכני — לא מוצג ללקוח · נתוני דמו בלבד</div><div id="tech-body"></div>`, null, 'tech', page);
+    const mapBanner = ['mapping', 'fieldmap', 'workplan'].includes(page) ? 'נתוני מערכת אמיתיים — אומתו מול לוגי Render 24-25.11' : 'נתוני דמו בלבד';
+    shell('tech', `<div class="tech-banner">⚙ אזור טכני — לא מוצג ללקוח · ${mapBanner}</div><div id="tech-body"></div>`, null, 'tech', page);
     const el = document.getElementById('tech-body');
     ({ home: techHome, integrations: techIntegrations, mapping: boardMapping, fieldmap: boardFieldMap, logs: techLogs, freshness: techFreshness, 'campaign-map': techCampaignMap, workplan: boardWorkPlan }[page] || techHome)(el);
   }
