@@ -1524,12 +1524,15 @@
   const MAP_EXCLUDED = ['קליטת הפניות מטא (CTWA)', 'אינסטגרם (קליטה + ניהול)', 'שיחה שלא נענתה (Twilio)', 'תוסף האתר (/site/wa-ref)', 'סנכרון תורים ותשלומים ל-Optione (booking_sync)', 'תיוג קמפיינים (campaign_sync)', 'הנחיות לפני פייסטייט', 'MedReviews', 'ניטור חשבון וואטסאפ', 'בדיקת חיבור לאיזיביזי', 'דוחות מתוזמנים (הכנסות, מקורות, לידים חסרים)'];
 
   function boardMapping(el) {
-    const row = (h) => `<div class="map-row">
-      <div class="map-cell"><div class="map-lbl">וובהוק מאיזיביזי</div><b>${h.ev}</b><span class="map-sub">${h.evd}</span></div>
-      <div class="map-arrow">⇐</div>
-      <div class="map-cell"><div class="map-lbl">הפעולה שמתבצעת</div><span>${h.act}</span></div>
-      <div class="map-meta"><span class="badge blue">${h.mod}</span><span class="badge">${h.mode}</span>${MAP_STAMP}</div>
-    </div>`;
+    const tblHead = '<thead><tr><th>וובהוק מאיזיביזי</th><th>הפעולה שמתבצעת</th><th>מודול</th><th>מצב</th><th>אימות</th></tr></thead>';
+    const row = (h) => `<tr>
+      <td data-h="וובהוק מאיזיביזי"><b>${h.ev}</b><span class="map-sub">${h.evd}</span></td>
+      <td data-h="הפעולה שמתבצעת">${h.act}</td>
+      <td data-h="מודול"><span class="badge blue">${h.mod}</span></td>
+      <td data-h="מצב"><span class="badge">${h.mode}</span></td>
+      <td data-h="אימות">${MAP_STAMP}</td>
+    </tr>`;
+    const tbl = (rows) => `<div class="tbl-wrap"><table class="tbl">${tblHead}<tbody>${rows.map(row).join('')}</tbody></table></div>`;
     el.innerHTML = `
       <div class="att-counters c3">
         <div class="att-counter" style="--ac:var(--ac-blue)"><div class="ac-num num">${MAP_HOOKS.length}</div><div class="ac-label">שרשראות webhook ← פעולה</div></div>
@@ -1537,8 +1540,8 @@
         <div class="att-counter" style="--ac:var(--yellow)"><div class="ac-num num">${MAP_HOOKS.length + MAP_SCHED.length}</div><div class="ac-label">שורות הממתינות לאימות Render</div></div>
       </div>
       <div class="alert-strip" style="margin-bottom:12px"><span class="as-ico">ℹ</span><span>המיפוי מבוסס על קוד ה-Git (ziv-whatsapp-attribution, 24.11.2026) בלבד. כל שורה מסומנת <b>טרם אומת מול Render</b> עד להשלמת הגדרות הפריסה והלוגים. נקודת הקליטה: <span class="num">POST /easybizy/webhook</span> עם אימות סוד משותף.</span></div>
-      <div class="card" style="margin:0 0 12px"><h3>וובהוק מאיזיביזי ← פעולה</h3>${MAP_HOOKS.map(row).join('')}</div>
-      <div class="card" style="margin:0 0 12px"><h3>מופעלות מה-webhook עם תזמון או השהייה מכוונת</h3>${MAP_SCHED.map(row).join('')}</div>
+      <div class="card" style="margin:0 0 12px"><h3>וובהוק מאיזיביזי ← פעולה</h3>${tbl(MAP_HOOKS)}</div>
+      <div class="card" style="margin:0 0 12px"><h3>מופעלות מה-webhook עם תזמון או השהייה מכוונת</h3>${tbl(MAP_SCHED)}</div>
       <details class="att-list card" style="margin:0"><summary><span class="att-title">לא נכללו במיפוי</span><span class="badge">${MAP_EXCLUDED.length} מערכות</span><span class="att-caret">◂</span></summary>
         <div class="cell-sub" style="margin:6px 16px 12px">למערכות אלה אין webhook שמגיע מאיזיביזי, ולכן הן מחוץ למיפוי לפי ההגדרה: ${MAP_EXCLUDED.join(' · ')}</div>
       </details>`;
@@ -1590,11 +1593,13 @@
   function boardFieldMap(el) {
     const all = FM_PAGES.flatMap(p => p.rows);
     const cnt = (st) => all.filter(r => r[2] === st).length;
-    const rowHtml = (r) => `<div class="map-row fm-row">
-      <div class="map-cell"><b>${r[0]}</b></div>
-      <div class="map-cell"><div class="map-lbl">מקור אפשרי</div><span class="map-sub">${r[1]}</span></div>
-      <div class="map-meta">${FM_ST[r[2]][0]}<span class="map-sub" style="text-align:left;max-width:340px">${r[3]}</span></div>
-    </div>`;
+    const rowHtml = (r) => `<tr>
+      <td data-h="שדה בדשבורד"><b>${r[0]}</b></td>
+      <td data-h="מקור אפשרי">${r[1]}</td>
+      <td data-h="קיים בקוד">${FM_ST[r[2]][0]}</td>
+      <td data-h="הערה"><span class="map-sub">${r[3]}</span></td>
+    </tr>`;
+    const tblHead = '<thead><tr><th>שדה בדשבורד</th><th>מקור אפשרי</th><th>קיים בקוד</th><th>הערה</th></tr></thead>';
     el.innerHTML = `
       <div class="att-counters c3">
         <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">${cnt('yes')}</div><div class="ac-label">קיימים בקוד השרת</div></div>
@@ -1602,7 +1607,7 @@
         <div class="att-counter" style="--ac:var(--muted)"><div class="ac-num num">${cnt('no')}</div><div class="ac-label">לא קיימים</div></div>
       </div>
       <div class="alert-strip" style="margin-bottom:12px"><span class="as-ico">ℹ</span><span>לכל שדה בדשבורד: מאיפה אפשר להביא את הנתון, והאם השרת כבר קורא או מפיק אותו <b>לפי קוד ה-Git</b> (24.11.2026). העמודה "קיים" משקפת את הקוד בלבד — ${'טרם אומת מול Render'}.</span></div>
-      ${FM_PAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.page}</h3>${pg.rows.map(rowHtml).join('')}</div>`).join('')}`;
+      ${FM_PAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.page}</h3><div class="tbl-wrap"><table class="tbl">${tblHead}<tbody>${pg.rows.map(rowHtml).join('')}</tbody></table></div></div>`).join('')}`;
   }
 
   const WP_ST = {
@@ -1655,10 +1660,12 @@
   function boardWorkPlan(el) {
     const all = WP_STAGES.flatMap(p => p.items);
     const cnt = (st) => all.filter(r => r[1] === st).length;
-    const rowHtml = (r) => `<div class="map-row wp-row">
-      <div class="map-cell"><b>${r[0]}</b></div>
-      <div class="map-meta">${WP_ST[r[1]]}<span class="map-sub" style="text-align:left;max-width:340px">${r[2]}</span></div>
-    </div>`;
+    const rowHtml = (r) => `<tr>
+      <td data-h="משימה"><b>${r[0]}</b></td>
+      <td data-h="מצב">${WP_ST[r[1]]}</td>
+      <td data-h="מה נדרש"><span class="map-sub">${r[2]}</span></td>
+    </tr>`;
+    const tblHead = '<thead><tr><th>משימה</th><th>מצב</th><th>מה נדרש להשלמה</th></tr></thead>';
     el.innerHTML = `
       <div class="att-counters c4">
         <div class="att-counter" style="--ac:var(--mint-ink)"><div class="ac-num num">${cnt('built')}</div><div class="ac-label">קיימים בקוד</div></div>
@@ -1667,7 +1674,7 @@
         <div class="att-counter" style="--ac:var(--ac-blue)"><div class="ac-num num">${cnt('ziv')}</div><div class="ac-label">אצל זיו / איזיביזי</div></div>
       </div>
       <div class="alert-strip" style="margin-bottom:12px"><span class="as-ico">ℹ</span><span>לפי מסמך האפיון של הקליניקה ("מסמך מערכת מלא", 14.11.2026), בהשוואה לקוד ה-Git (24.11.2026) — <b>טרם אומת מול Render</b>. הכלל המנחה באפיון: מה שאיזיביזי יכולה לעשות בעצמה עדיף על פתרון בשרת.</span></div>
-      ${WP_STAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.stage}</h3>${pg.note ? `<div class="cell-sub" style="margin:0 16px 10px">${pg.note}</div>` : ''}${pg.items.map(rowHtml).join('')}</div>`).join('')}`;
+      ${WP_STAGES.map(pg => `<div class="card" style="margin:0 0 12px"><h3>${pg.stage}</h3>${pg.note ? `<div class="cell-sub" style="margin:0 0 10px">${pg.note}</div>` : ''}<div class="tbl-wrap"><table class="tbl">${tblHead}<tbody>${pg.items.map(rowHtml).join('')}</tbody></table></div></div>`).join('')}`;
   }
 
   function boardSystems(el) {
