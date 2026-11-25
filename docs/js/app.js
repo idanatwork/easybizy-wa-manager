@@ -587,7 +587,7 @@
 
   /* ---- dashboard tab ---- */
 
-  // Reference-style chart: olive bars, dashed gridlines, values on top, white hover tooltip
+  // Reference-style chart: vivid blue bars (opts.highlight = index of 'today'), dashed gridlines, values on top, white hover tooltip
   function c2chart(values, opts = {}) {
     const labels = opts.labels || [];
     const seg = opts.seg || null;
@@ -601,9 +601,9 @@
       const h = Math.round(totals[i] / vmax * 100);
       const tip = opts.tip ? opts.tip(i) : String(v);
       const errSeg = seg && seg[i] ? `<span class="seg-err" style="height:${Math.round(seg[i] / totals[i] * 100)}%"></span>` : '';
-      return `<div class="c2-col" data-tip="${tip}"><span class="c2-val num">${v}</span><div class="c2-bar" style="height:${h}%">${errSeg}</div></div>`;
+      return `<div class="c2-col${opts.highlight === i ? ' c2-today' : ''}" data-tip="${tip}"><span class="c2-val num">${v}</span><div class="c2-bar" style="height:${h}%">${errSeg}</div></div>`;
     }).join('');
-    const xlab = labels.map(l => `<span>${l}</span>`).join('');
+    const xlab = labels.map((l, i) => `<span${opts.highlight === i ? ' class="c2-today-lab"' : ''}>${opts.highlight === i ? (opts.highlightLabel || l) : l}</span>`).join('');
     const conv = opts.convRow ? `<div class="c2-x c2-conv">${opts.convRow.map(l => `<span>${l}</span>`).join('')}</div>` : '';
     return `<div class="c2"><div class="c2-y">${ylabels}</div><div class="c2-plot">${grid}<div class="c2-axis"></div><div class="c2-bars">${bars}</div></div></div><div class="c2-x">${xlab}</div>${conv}`;
   }
@@ -624,7 +624,7 @@
       <div class="dash-2col">
         <div class="card" style="margin:0"><h3>ריצות — 14 ימים אחרונים</h3>
           ${chartHtml}
-          <div class="chart-legend"><span><span class="dotk" style="background:#5b6b4a"></span>ריצות (${dash.runs_30d} ב-30 ימים)</span><span><span class="dotk" style="background:#c0564d"></span>שגיאות (${dash.errors_30d})</span></div>
+          <div class="chart-legend"><span><span class="dotk" style="background:var(--bar)"></span>ריצות (${dash.runs_30d} ב-30 ימים)</span><span><span class="dotk" style="background:var(--bar-err)"></span>שגיאות (${dash.errors_30d})</span></div>
         </div>
         <div class="card" style="margin:0"><h3>פעולות מהירות</h3>
           <div class="quick-actions" style="flex-direction:column;align-items:stretch">
@@ -1168,12 +1168,12 @@
     return o;
   }
   function clinicDonut(chans) {
-    const pal = ['var(--pal0)', 'var(--pal1)', 'var(--pal2)', 'var(--pal3)', 'var(--pal4)', 'var(--ac-cyan)'];
+    const pal = chans.map(c => chColor(c.key));
     const tot = chans.reduce((a, c) => a + c.leads, 0) || 1;
     let acc = 0;
-    const segs = chans.map((c, i) => { const f = acc / tot * 360; acc += c.leads; return `${pal[i % 6]} ${f}deg ${acc / tot * 360}deg`; }).join(', ');
+    const segs = chans.map((c, i) => { const f = acc / tot * 360; acc += c.leads; return `${pal[i]} ${f}deg ${acc / tot * 360}deg`; }).join(', ');
     return `<div class="donut-wrap"><div class="donut" style="background:conic-gradient(${segs})"><div class="hole"><div><b class="num">${tot}</b><small>לידים</small></div></div></div>
-      <div class="donut-legend">${chans.map((c, i) => `<a class="dl-row" href="#/channels?channel=${c.key}"><span class="dotk" style="background:${pal[i % 6]}"></span><span class="dl-name">${c.name}</span><b class="num">${c.leads} · ${Math.round(c.leads / tot * 100)}%</b></a>`).join('')}</div></div>`;
+      <div class="donut-legend">${chans.map((c, i) => `<a class="dl-row" href="#/channels?channel=${c.key}"><span class="dotk" style="background:${pal[i]}"></span><span class="dl-name">${c.name}</span><b class="num">${c.leads} · ${Math.round(c.leads / tot * 100)}%</b></a>`).join('')}</div></div>`;
   }
   function scaledChannels(p) {
     const f = PSCALE[p] || 1, r = (n) => Math.round(n * f);
@@ -1183,6 +1183,9 @@
     const f = PSCALE[p] || 1, r = (n) => Math.round(n * f);
     return CD.campaigns.map(c => ({ ...c, spend: r(c.spend), leads: r(c.leads), booked: r(c.booked), arrived: r(c.arrived), paid: r(c.paid), rev: r(c.rev) }));
   }
+  const chColor = (key) => `var(--ch-${key}, var(--ac-cyan))`;
+  const chDot = (key) => `<span class="ch-dot" style="background:${chColor(key)}"></span>`;
+  const chBadge = (key) => `<span class="badge ch" style="--chc:${chColor(key)}">${chDot(key)}${chanName(key)}</span>`;
   const chanName = (key) => (CD.channels.find(c => c.key === key) || {}).name || key;
 
   function viewClinic(screen, param) {
@@ -1224,7 +1227,9 @@
       labels = values.map((_, i) => (i % 2 === 0 ? dstr(ago(13 - i)) : ''));
       title = p === 'custom' ? 'לידים — בטווח שנבחר' : 'לידים — 14 ימים אחרונים';
     }
-    return { chart: c2chart(values, { labels, tip: (i) => `${values[i]} לידים` }), title };
+    const hl = ['today', 'week', 'month'].includes(p) ? values.length - 1 : -1;
+    const hlLabel = p === 'today' ? 'עכשיו' : 'היום';
+    return { chart: c2chart(values, { labels, highlight: hl, highlightLabel: hlLabel, tip: (i) => `${values[i]} לידים${i === hl ? ' · ' + hlLabel : ''}` }), title };
   }
 
   function clinicOverview(el) {
@@ -1259,7 +1264,7 @@
           ${clinicDonut(chans)}
           <div class="tbl-wrap"><table class="tbl tbl-rows">
             <thead><tr><th>ערוץ</th><th>לידים</th><th>נקבעו תורים</th></tr></thead>
-            <tbody>${chans.map(c => `<tr data-chlink="${c.key}" style="cursor:pointer"><td data-h="ערוץ"><b>${c.name}</b></td><td data-h="לידים" class="num">${c.leads}</td><td data-h="נקבעו" class="num">${c.booked} · ${Math.round(c.booked / (c.leads || 1) * 100)}%</td></tr>`).join('')}</tbody>
+            <tbody>${chans.map(c => `<tr data-chlink="${c.key}" style="cursor:pointer"><td data-h="ערוץ">${chDot(c.key)}<b>${c.name}</b></td><td data-h="לידים" class="num">${c.leads}</td><td data-h="נקבעו" class="num">${c.booked} · ${Math.round(c.booked / (c.leads || 1) * 100)}%</td></tr>`).join('')}</tbody>
           </table></div>
         </div>
       </div>
@@ -1317,7 +1322,7 @@
       const rroas = c.spend ? '×' + (c.rev / c.spend).toFixed(1) : '—';
       return `<tr data-camp="${c.key}" style="cursor:pointer">
         <td data-h="קמפיין"><b>${c.name}</b>${c.unmapped ? ' <span class="badge yellow">ממתין למיפוי</span>' : ''}</td>
-        <td data-h="ערוץ"><span class="badge blue">${chanName(c.channel)}</span></td>
+        <td data-h="ערוץ">${chBadge(c.channel)}</td>
         <td data-h="טיפול">${c.treatment}</td>
         <td data-h="הוצאה" class="num">${c.spend ? ils(c.spend) : '—'}</td>
         <td data-h="לידים" class="num">${c.leads}</td>
@@ -1341,7 +1346,7 @@
       </div>
       <div class="card" style="margin:0 0 12px">
         <div class="filt-row"><span class="filt-l">ערוץ:</span>
-          ${CD.channels.map(c => `<a class="board-tab ${selCh.includes(c.key) ? 'active' : ''}" href="${chUrl(selCh.includes(c.key) ? selCh.filter(k => k !== c.key) : [...selCh, c.key], selTr)}">${c.name}</a>`).join('')}
+          ${CD.channels.map(c => `<a class="board-tab ${selCh.includes(c.key) ? 'active' : ''}" href="${chUrl(selCh.includes(c.key) ? selCh.filter(k => k !== c.key) : [...selCh, c.key], selTr)}">${chDot(c.key)}${c.name}</a>`).join('')}
           ${selCh.length ? `<a class="board-tab" href="${chUrl([], selTr)}" style="opacity:.7">נקה</a>` : ''}
         </div>
         <div class="filt-row"><span class="filt-l">טיפול:</span>
@@ -1359,7 +1364,7 @@
           <tbody>${chans.map(c => {
             const pc = (a, b) => Math.round(a / (b || 1) * 100) + '%';
             const cpp = c.spend && c.paid ? ils(Math.round(c.spend / c.paid)) : (c.paid ? 'ללא עלות' : '—');
-            return `<tr><td data-h="ערוץ"><b>${c.name}</b></td><td data-h="לידים" class="num">${c.leads}</td>
+            return `<tr><td data-h="ערוץ">${chDot(c.key)}<b>${c.name}</b></td><td data-h="לידים" class="num">${c.leads}</td>
               <td data-h="נקבעו" class="num">${pc(c.booked, c.leads)}</td><td data-h="הגיעו" class="num">${pc(c.arrived, c.booked)}</td>
               <td data-h="שילמו" class="num">${pc(c.paid, c.arrived)}</td><td data-h="מקצה לקצה"><b class="num">${pc(c.paid, c.leads)}</b></td>
               <td data-h="עלות למטופל" class="num">${cpp}</td>
@@ -1405,7 +1410,7 @@
     el.innerHTML = clinicHead(c.name, '') + `
       <div style="margin-bottom:12px"><a href="#/channels${p !== 'month' ? '?p=' + p : ''}" style="color:var(--green);font-weight:600">← חזרה לערוצים וקמפיינים</a></div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-        <span class="badge blue">${chanName(c.channel)}</span>
+        ${chBadge(c.channel)}
         ${c.treatment !== '—' ? `<span class="badge">${c.treatment}</span>` : ''}
         ${c.status ? `<span class="badge ${c.status === 'פעיל' ? 'green' : ''}">${c.status}</span>` : ''}
         ${c.unmapped ? '<span class="badge yellow">ממתין למיפוי — נספר בערוץ אבל לא בקמפיין</span>' : ''}
