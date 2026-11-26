@@ -95,8 +95,8 @@
           <a class="nav-item ${screen === 'status' ? 'active' : ''}" href="#/status"><span class="ico">▣</span> סטטוס</a>`
         : brand === 'tech' ? `
           <a class="back-link" href="#/" style="padding:4px 12px">→ דשבורד הלקוח</a>
-          <div class="client-nav-head"><div class="cn-name">אזור טכני</div><span class="badge yellow">דמו</span></div>
-          ${TECH_PAGES.map(([k, l]) => `<a class="nav-item ${screen === k ? 'active' : ''}" href="#/tech${k === 'home' ? '' : '/' + k}"><span class="ico">▸</span> ${l}</a>`).join('')}`
+          <div class="client-nav-head"><div class="cn-name">אזור טכני</div><span class="badge">פנימי</span></div>
+          ${TECH_NAV.map(g => `<div class="tech-nav-group${g.demo ? ' demo' : ''}" style="padding:10px 12px 4px;font-size:11.5px;font-weight:700;color:var(--muted)${g.demo ? ';margin-top:10px;border-top:1px solid var(--line);padding-top:12px' : ''}">${g.label}</div>` + g.items.map(([k, l]) => `<a class="nav-item ${screen === k ? 'active' : ''}" href="#/tech${k === 'home' ? '' : '/' + k}"${g.demo ? ' style="opacity:.78;font-size:13px"' : ''}><span class="ico">${g.demo ? '◌' : '▸'}</span> ${l}</a>`).join('')).join('')}`
         : `
           <a class="nav-item ${active === 'clients' ? 'active' : ''}" href="#/clients"><span class="ico">▦</span> לקוחות</a>
           ${Api.demoMode || !Api.isLoggedIn() ? `<a class="nav-item" href="#/"><span class="ico">◔</span> דשבורד קליניקה (דמו)</a><a class="nav-item" href="#/tech"><span class="ico">⚙</span> אזור טכני (דמו)</a>` : ''}`;
@@ -1495,7 +1495,10 @@
   /* ---- tech zone: password-locked. The tech pages live encrypted in js/tech.enc.json
    *      (AES-256-GCM, key = PBKDF2-SHA256 of the owner's password). Nothing technical is in this file.
    *      The derived key (never the password) is cached in sessionStorage for this tab only. ---- */
-  const TECH_PAGES = [['home', 'בקרה'], ['integrations', 'אינטגרציות'], ['mapping', 'מיפוי קיים כיום'], ['fieldmap', 'מיפוי שדות'], ['logs', 'לוגים'], ['freshness', 'טריות נתונים'], ['campaign-map', 'מיפוי קמפיינים'], ['workplan', 'תוכנית עבודה']];
+  const TECH_NAV = [
+    { label: 'עבודה ותמחור (נתונים אמיתיים)', items: [['home', 'פוקוס ותמחור'], ['mapping', 'מיפוי ביצוע'], ['workplan', 'תוכנית עבודה']] },
+    { label: 'תצוגות דמו טכני (לפגישה)', demo: true, items: [['demo-home', 'בקרה טכנית'], ['integrations', 'אינטגרציות'], ['logs', 'לוגים'], ['freshness', 'טריות נתונים'], ['campaign-map', 'מיפוי קמפיינים']] },
+  ];
 
   const TECH_KEY = 'ziv_tech_key_v1';
   let techMod = null, techBlob = null;
