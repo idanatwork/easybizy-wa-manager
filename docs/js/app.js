@@ -1496,7 +1496,7 @@
    *      (AES-256-GCM, key = PBKDF2-SHA256 of the owner's password). Nothing technical is in this file.
    *      The derived key (never the password) is cached in sessionStorage for this tab only. ---- */
   const TECH_NAV = [
-    { label: 'עבודה ותמחור (נתונים אמיתיים)', items: [['home', 'פוקוס ותמחור'], ['mapping', 'מיפוי ביצוע'], ['workplan', 'תוכנית עבודה']] },
+    { label: 'עבודה ותמחור (נתונים אמיתיים)', items: [['home', 'פוקוס ותמחור'], ['live-poc', 'דשבורד POC <span class="badge green" style="font-size:10.5px;padding:0 7px;margin-inline-start:4px">חי</span>'], ['mapping', 'מיפוי ביצוע'], ['workplan', 'תוכנית עבודה']] },
     { label: 'תצוגות דמו טכני (לפגישה)', demo: true, items: [['demo-home', 'בקרה טכנית'], ['integrations', 'אינטגרציות'], ['logs', 'לוגים'], ['freshness', 'טריות נתונים'], ['campaign-map', 'מיפוי קמפיינים']] },
   ];
 
